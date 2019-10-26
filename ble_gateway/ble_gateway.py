@@ -12,12 +12,13 @@ def run_ble(_config):
 
         ev = aiobs.HCI_Event()
         xx = ev.decode(data)
-        print("Raw data: {}".format(ev.raw_data))
+        #        print("Raw data: {}".format(ev.raw_data))
         xx = RuuviWeather().decode(ev)
         if xx:
             print("Weather info {}".format(xx))
-        else:
-            ev.show(0)
+
+    #        else:
+    #            ev.show(0)
 
     # EOF callback_data_handler
 
