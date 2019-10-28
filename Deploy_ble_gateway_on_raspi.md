@@ -14,6 +14,10 @@ sudo locale-gen
 sudo apt-get install git
 sudo apt-get install pipenv
 
+# git globals
+git config --global user.email "suominen.jani@gmail.com"  
+git config --global user.name "jasunen"  
+
 # clone repo
 git clone https://jasunen:<PASSWORD>@github.com/jasunen/ble_gateway.git
 # Enter project directory
@@ -42,4 +46,11 @@ Run make_run_script.sh the ble_gateway root directory. It will create script for
 ```sh
 . make_run_script.sh
 . run_ble.sh
+```
+
+# update from github
+```sh
+git stash # stash all local edits
+git pull # pull from github repo
+# update run script as above
 ```

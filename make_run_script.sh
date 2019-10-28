@@ -10,4 +10,6 @@ echo "sudo ${VIRTPYTHON} -m ble_gateway \$*" > $RUN_BLE
 
 echo "Created $RUN_BLE:"
 cat $RUN_BLE
-echo $'\nNow type \n. $RUN_BLE [args]\nto run module as sudo'
+echo $'\nNow type \n.'
+echo "$RUN_BLE [args]"
+echo "to run module as sudo"
