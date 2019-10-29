@@ -29,7 +29,8 @@ def parse_cmd_line_arguments(parser):
         "--configfile",
         type=str,
         default=os.path.join(os.path.dirname(__file__), "ble_gateway.config.yaml"),
-        help="Configuration file to use. Default is ble_gateway.cofig.yaml in the module's directory",
+        help="Configuration file to use. Default is ble_gateway.cofig.yaml \
+        in the module's directory. Use - for no configfile.",
     )
     parser.add_argument(
         "-e",
@@ -71,7 +72,8 @@ def parse_cmd_line_arguments(parser):
         "--advertise",
         type=int,
         default=0,
-        help="Broadcast like an EddyStone Beacon. Set the interval between packet in millisec",
+        help="Broadcast like an EddyStone Beacon. \
+        Set the interval between packet in millisec",
     )
     parser.add_argument(
         "-u",
@@ -109,6 +111,8 @@ def parse_cmd_line_arguments(parser):
 def load_configfile(file, _config):
     # If file exists, returns the content (MUST BE YAML) as dict
     # and updates _config
+    if file == "-":
+        return {}
     if os.path.isfile(file):
         with open(file) as f:
             print("Reading configfile:", file)
