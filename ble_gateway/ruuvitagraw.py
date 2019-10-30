@@ -65,7 +65,7 @@ class RuuviTagRaw(object):
     def _decode_df3(self, data, result):
         result["data_format"] = 3
         result["humidity"] = data[1] / 2.0
-        result["temperature"] = self.helper_temp_df3(data[2], data[3])
+        result["temperature"] = self._helper_temp_df3(data[2], data[3])
         result["pressure"] = int.from_bytes(data[4:6], "big") + 50000
         dx = int.from_bytes(data[6:8], "big", signed=True)
         dy = int.from_bytes(data[8:10], "big", signed=True)

@@ -13,7 +13,7 @@ def run_ble(_config):
     def callback_data_handler(data):
 
         ev = aiobs.HCI_Event()
-        # xx = ev.decode(data)
+        xx = ev.decode(data)
         #        print("Raw data: {}".format(ev.raw_data))
         xx = RuuviTagRaw().decode(ev)
         if xx:
