@@ -16,8 +16,8 @@ def run_ble(_config):
         ev = aiobs.HCI_Event()
         mac = ev.retrieve("peer")
         xx = ev.decode(data)
-        print("mac: {}".format(mac))
-        print("xx: {}".format(xx))
+        print("mac: ", mac)
+        print("data: {}".format(data))
         xx = RuuviTagRaw().decode(ev)
         if xx:
             print("RuuviTag data {}".format(xx))
