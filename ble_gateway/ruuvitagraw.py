@@ -127,7 +127,7 @@ class RuuviTagRaw(object):
 
     def decode(self, packet):  # must return none for unsuccesfull decode
         result = {}
-        result["mac"] = packet.retrieve("peer")[0].val
+
         rssi = packet.retrieve("rssi")
         if rssi:
             result["rssi"] = rssi[-1].val
@@ -136,6 +136,7 @@ class RuuviTagRaw(object):
         if mfg_specific_data:
             val = mfg_specific_data[0].val
             if val[0] == 0x99 and val[1] == 0x04:  # looks like Ruuvi
+                result["mac"] = packet.retrieve("peer")[0].val
                 val = val[2:]
                 if val[0] == 0x03:  # data format 3
                     self._decode_df3(val, result)

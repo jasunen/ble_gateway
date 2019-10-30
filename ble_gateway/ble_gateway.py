@@ -3,7 +3,7 @@ import asyncio
 import aioblescan as aiobs
 from aioblescan.plugins import EddyStone
 
-from ble_gateway import ruuvitagraw
+from ble_gateway.ruuvitagraw import RuuviTagRaw
 
 
 # Define and run ble scanner asyncio loop
@@ -13,9 +13,9 @@ def run_ble(_config):
     def callback_data_handler(data):
 
         ev = aiobs.HCI_Event()
-        xx = ev.decode(data)
+        # xx = ev.decode(data)
         #        print("Raw data: {}".format(ev.raw_data))
-        xx = ruuvitagraw().decode(ev)
+        xx = RuuviTagRaw().decode(ev)
         if xx:
             print("Weather info {}".format(xx))
 
