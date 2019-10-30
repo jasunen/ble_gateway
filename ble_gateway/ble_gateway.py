@@ -12,10 +12,13 @@ def run_ble(_config):
     # Callback process to handle data received from BLE
     # ---------------------------------------------------
     def callback_data_handler(data):
+        # data = byte array of raw data received
 
         ev = aiobs.HCI_Event()
         xx = ev.decode(data)
         mac = ev.retrieve("peer")
+        # mac = list of mac addresses (should be only one..),
+        # object type aioblescan.MACaddr
         if mac:
             print("mac: ", mac[0].val)
         print("data: {}".format(data))
