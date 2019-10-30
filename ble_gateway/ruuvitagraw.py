@@ -44,6 +44,11 @@ def rshift(val, n):
     return (val % 0x100000000) >> n
 
 
+def scale_n_round(d, key, scale, digits):
+    if key in d:
+        d[key] = round(d[key] * scale, digits)
+
+
 # Ruuvi tag stuffs
 
 
@@ -84,21 +89,18 @@ class RuuviTagRaw(object):
             temp = None
         else:
             temp = twos_complement((data[1] << 8) + data[2], 16) / 200
-            temp = round(temp, 2)
         result["temperature"] = temp
 
         if data[3:4] == 0xFFFF:
             humidity = None
         else:
             humidity = ((data[3] & 0xFF) << 8 | data[4] & 0xFF) / 400
-            humidity = round(humidity, 2)
         result["humidity"] = humidity
 
         if data[5:6] == 0xFFFF:
             pressure = None
         else:
             pressure = ((data[5] & 0xFF) << 8 | data[6] & 0xFF) + 50000
-            pressure = round((pressure / 100), 2)
         result["pressure"] = pressure
 
         dx = twos_complement((data[7] << 8) + data[8], 16)
@@ -122,27 +124,40 @@ class RuuviTagRaw(object):
         if (power_info & 0b11111) == 0b11111:
             tx_power = None
 
-        result["battery"] = round(battery_voltage, 3)
+        result["battery"] = battery_voltage
         result["tx_power"] = tx_power
 
     def decode(self, packet):  # must return none for unsuccesfull decode
         result = {}
 
-        rssi = packet.retrieve("rssi")
-        if rssi:
-            result["rssi"] = rssi[-1].val
-
         mfg_specific_data = packet.retrieve("Payload for mfg_specific_data")
         if mfg_specific_data:
             val = mfg_specific_data[0].val
             if val[0] == 0x99 and val[1] == 0x04:  # looks like Ruuvi
+                rssi = packet.retrieve("rssi")
+                if rssi:
+                    result["rssi"] = rssi[-1].val
                 result["mac"] = packet.retrieve("peer")[0].val
                 val = val[2:]
                 if val[0] == 0x03:  # data format 3
                     self._decode_df3(val, result)
-                    return result
-                if val[0] == 0x05:  # data format 5
+                elif val[0] == 0x05:  # data format 5
                     self._decode_df5(val, result)
-                    return result
+                else:
+                    return None
+
+                # Scale and round results
+                scale_n_round(result, "humidity", 1, 1)
+                scale_n_round(result, "temperature", 1, 2)
+                scale_n_round(result, "pressure", 1 / 100, 2)
+                scale_n_round(result, "acceleration", 1, None)
+                scale_n_round(result, "battery", 1 / 100, 2)
+                result["humidity"] = round(result["humidity"], 1)
+                result["temperature"] = round(result["temperature"], 2)
+                result["pressure"] = round(result["pressure"] / 100, 2)
+                result["acceleration"] = round(result["acceleration"], 0)
+                result["battery"] = round(result["battery"] / 100, 2)
+
+                return result
 
         return None
