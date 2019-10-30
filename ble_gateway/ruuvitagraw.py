@@ -151,12 +151,7 @@ class RuuviTagRaw(object):
                 scale_n_round(result, "temperature", 1, 2)
                 scale_n_round(result, "pressure", 1 / 100, 2)
                 scale_n_round(result, "acceleration", 1, None)
-                scale_n_round(result, "battery", 1 / 100, 2)
-                result["humidity"] = round(result["humidity"], 1)
-                result["temperature"] = round(result["temperature"], 2)
-                result["pressure"] = round(result["pressure"] / 100, 2)
-                result["acceleration"] = round(result["acceleration"], 0)
-                result["battery"] = round(result["battery"] / 100, 2)
+                scale_n_round(result, "battery", 1 / 1000, 2)
 
                 return result
 

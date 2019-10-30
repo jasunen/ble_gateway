@@ -9,19 +9,19 @@ from ble_gateway.ruuvitagraw import RuuviTagRaw
 # Define and run ble scanner asyncio loop
 def run_ble(_config):
 
-    # Process to handle data received from BLE
+    # Callback process to handle data received from BLE
+    # ---------------------------------------------------
     def callback_data_handler(data):
 
         ev = aiobs.HCI_Event()
+        mac = ev.retrieve("peer")
         xx = ev.decode(data)
-        #        print("Raw data: {}".format(ev.raw_data))
+        print("\nmac: " + mac + "\nxx: " + xx)
         xx = RuuviTagRaw().decode(ev)
         if xx:
-            print("Weather info {}".format(xx))
+            print("RuuviTag data {}".format(xx))
 
-    #        else:
-    #            ev.show(0)
-
+    # ---------------------------------------------------
     # EOF callback_data_handler
 
     event_loop = asyncio.get_event_loop()
@@ -29,18 +29,18 @@ def run_ble(_config):
     # First create and configure a raw socket
     mysocket = aiobs.create_bt_socket(_config["device"])
 
-    # create a connection with the raw socket
-    # This used to work but now requires a STREAM socket.
-    # fac=event_loop.create_connection(aiobs.BLEScanRequester,sock=mysocket)
-    # Thanks to martensjacobs for this fix
+    # create a connection with the socket
     fac = event_loop._create_connection_transport(
         mysocket, aiobs.BLEScanRequester, None, None
     )
+
     # Start it
     conn, btctrl = event_loop.run_until_complete(fac)
-    # Attach your processing
+
+    # Attach your processing (callback)
     btctrl.process = callback_data_handler
 
+    # We can also send advertisements if needed
     if _config["advertise"]:
         command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
         btctrl.send_command(command)
@@ -59,15 +59,15 @@ def run_ble(_config):
         command = aiobs.HCI_Cmd_LE_Advertise(enable=True)
         btctrl.send_command(command)
 
-    # Probe
+    # Start BLE probe
     btctrl.send_scan_request()
     try:
         # event_loop.run_until_complete(coro)
         event_loop.run_forever()
     except KeyboardInterrupt:
-        print("keyboard interrupt")
+        print("\n\n\nKeyboard interrupt!")
     finally:
-        print("closing event loop")
+        print("Closing event loop.")
         btctrl.stop_scan_request()
         command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
         btctrl.send_command(command)
