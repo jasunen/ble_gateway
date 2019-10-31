@@ -25,47 +25,56 @@ def parse_cmd_line_arguments(parser):
         raise argparse.ArgumentTypeError("%s is not a MAC address" % val)
 
     parser.add_argument(
-        "-C",
+        "-c",
         "--configfile",
+        metavar="FILE",
         type=str,
         default=os.path.join(os.path.dirname(__file__), "ble_gateway.config.yaml"),
         help="Configuration file to use. Default is ble_gateway.cofig.yaml \
         in the module's directory. Use - for no configfile.",
     )
     parser.add_argument(
-        "-e",
-        "--eddy",
+        "-w",
+        "--writeconfig",
+        type=str,
+        metavar="FILE",
+        default="",
+        help="Write configuration to FILE or \
+        - to print out configuration and exit.",
+    )
+    parser.add_argument(
+        "-S",
+        "--scan",
         action="store_true",
         default=False,
-        help="Look specificaly for Eddystone messages.",
+        help="Start in Scan mode. Listen for broadcasts and \
+        collect mac addresses. \
+        Disables forwarding of messages to any destination (writers).",
+    )
+    parser.add_argument(
+        "--decode",
+        metavar="DECODER",
+        action="append",
+        choices=["all", "ruuviraw", "ruuviurl", "eddy", "pebble"],
+        help="Optional. Decoders to use in Scan mode. \
+        Has no effect if --scan not enabled. \
+        'all' will try all decoders. \
+        ",
     )
     parser.add_argument(
         "-m",
         "--mac",
         type=check_mac,
         action="append",
-        help="Look for these MAC addresses.",
+        help="Look for these MAC addresses. Combine with --scan to \
+        lookfor specific macs only.",
     )
     parser.add_argument(
         "-r",
-        "--ruuvi",
-        action="store_true",
-        default=False,
-        help="Look only for Ruuvi tag Weather station messages",
-    )
-    parser.add_argument(
-        "-p",
-        "--pebble",
-        action="store_true",
-        default=False,
-        help="Look only for Pebble Environment Monitor",
-    )
-    parser.add_argument(
-        "-R",
         "--raw",
         action="store_true",
         default=False,
-        help="Also show the raw data.",
+        help="Show raw data for each received packet as well.",
     )
     parser.add_argument(
         "-a",
@@ -95,13 +104,6 @@ def parse_cmd_line_arguments(parser):
         type=int,
         default=0,
         help="Select the hciX device to use (default 0, i.e. hci0).",
-    )
-    parser.add_argument(
-        "--write_config_to",
-        type=str,
-        metavar="FILE",
-        default="",
-        help="Write configuration to FILE or - to STDOUT",
     )
 
 
@@ -141,7 +143,7 @@ def main():
 
     # parse command line arguments
     parser = argparse.ArgumentParser(
-        description="Gateway BLE advertised packets to database"
+        description="BLE Gateway - sends advertised packets to a database"
     )
     parse_cmd_line_arguments(parser)
     try:
@@ -155,8 +157,9 @@ def main():
     # merge command line arguments into final configuration
     _config.update(vars(_opts))
 
-    if _opts.write_config_to:
-        write_configfile(_opts.write_config_to, _config)
+    if _opts.writeconfig:
+        write_configfile(_opts.writeconfig, _config)
+        return 0
 
     print(_config)
 

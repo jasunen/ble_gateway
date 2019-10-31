@@ -1,9 +1,10 @@
 import asyncio
 
 import aioblescan as aiobs
-from aioblescan.plugins import EddyStone
+from aioblescan.plugins import BlueMaestro, EddyStone
 
 from ble_gateway.ruuvitagraw import RuuviTagRaw
+from ble_gateway.ruuvitagurl import RuuviTagUrl
 
 
 # Define and run ble scanner asyncio loop
@@ -15,10 +16,52 @@ def run_ble(_config):
         # data = byte array of raw data received
 
         ev = aiobs.HCI_Event()
-        xx = ev.decode(data)
-        mac = ev.retrieve("peer")
-        # mac = list of mac addresses (should be only one..),
+        ev.decode(data)
+
+        # mac = list of mac addresses of the Packet (should be only one..),
         # object type aioblescan.MACaddr
+        mac = ev.retrieve("peer")
+        if _config["mac"]:
+            goon = False
+            for x in mac:
+                if x.val in _config["mac"]:
+                    goon = True
+                    break
+            if not goon:
+                return
+
+        # Are we in SCAN mode or normal gateway mode
+        if _config["scan"]:
+            # Try to identify the message
+            if "pebble" in _config["decode"]:
+                xx = BlueMaestro().decode(ev)
+                if xx:
+                    print("Pebble info {}".format(xx))
+            elif "ruuviraw" in _config["decode"]:
+                xx = RuuviTagRaw().decode(ev)
+                if xx:
+                    print("Weather info {}".format(xx))
+            elif "ruuviurl" in _config["decode"]:
+                xx = RuuviTagUrl().decode(ev)
+                if xx:
+                    print("Weather info {}".format(xx))
+            elif "eddy" in _config["decode"]:
+                xx = EddyStone().decode(ev)
+                if xx:
+                    print("Google Beacon {}".format(xx))
+            else:
+                # not identified
+                xx = {"messagetype": "unknown"}
+
+            if _config["raw"]:
+                print("Raw data: {}".format(ev.raw_data))
+            # Do the scan stuff
+            pass
+        else:
+            # Do the gateway stuff
+            # Add message to queue
+            pass
+
         if mac:
             print("mac: ", mac[0].val)
         print("data: {}".format(data))
