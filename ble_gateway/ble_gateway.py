@@ -19,7 +19,7 @@ def add_packet_info(mesg, ev):
     # Add additional packet info
     for key in ['rssi', 'peer', 'tx_power']:
         info = ev.retrieve(key)
-        if info and not mesg[key]:
+        if info and not mesg.get[key, None]:
             if key == 'peer':
                 key = 'mac'
             mesg[key] = info[-1].val
@@ -36,9 +36,15 @@ def run_ble(_config):
         ev = aiobs.HCI_Event()
         ev.decode(data)
 
+        if _config["showraw"]:
+            print("Raw data: {}".format(ev.raw_data))
+
         # mac = list of mac addresses of the Packet (should be only one..),
         # object type aioblescan.MACaddr
         mac = ev.retrieve("peer")
+        if not mac:
+            return
+
         if _config['allowmac'] and not is_mac_in_list(mac, _config['allowmac']):
             return
 
@@ -52,15 +58,12 @@ def run_ble(_config):
                 if not mesg:
                     mesg = {}
                     mesg['decode'] = 'Unknown'
-                    add_packet_info(mesg, ev)
+                add_packet_info(mesg, ev)
                 _config['seen_macs'][mesg['mac']] = mesg['decode']
         else:
             # Do the gateway stuff
             # Add message to queue
             print("Gateway mode not yet implemented")
-
-        if _config["showraw"]:
-            print("Raw data: {}".format(ev.raw_data))
 
     # ---------------------------------------------------
     # EOF callback_data_handler
