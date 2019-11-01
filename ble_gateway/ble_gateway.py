@@ -1,10 +1,28 @@
 import asyncio
 
 import aioblescan as aiobs
-from aioblescan.plugins import BlueMaestro, EddyStone
+from aioblescan.plugins import EddyStone
+from ble_gateway import decode
 
-from ble_gateway.ruuvitagraw import RuuviTagRaw
-from ble_gateway.ruuvitagurl import RuuviTagUrl
+
+def is_mac_in_list(mac, macs):
+    if macs:
+        for x in mac:
+            if x.val in macs:
+                return True
+        return False
+    else:
+        return False
+
+
+def add_packet_info(mesg, ev):
+    # Add additional packet info
+    for key in ['rssi', 'peer', 'tx_power']:
+        info = ev.retrieve(key)
+        if info and not mesg[key]:
+            if key == 'peer':
+                key = 'mac'
+            mesg[key] = info[-1].val
 
 
 # Define and run ble scanner asyncio loop
@@ -21,53 +39,27 @@ def run_ble(_config):
         # mac = list of mac addresses of the Packet (should be only one..),
         # object type aioblescan.MACaddr
         mac = ev.retrieve("peer")
-        if _config["mac"]:
-            goon = False
-            for x in mac:
-                if x.val in _config["mac"]:
-                    goon = True
-                    break
-            if not goon:
-                return
+        if _config['allowmac'] and not is_mac_in_list(mac, _config['allowmac']):
+            return
 
         # Are we in SCAN mode or normal gateway mode
-        if _config["scan"]:
-            # Try to identify the message
-            if "pebble" in _config["decode"]:
-                xx = BlueMaestro().decode(ev)
-                if xx:
-                    print("Pebble info {}".format(xx))
-            elif "ruuviraw" in _config["decode"]:
-                xx = RuuviTagRaw().decode(ev)
-                if xx:
-                    print("Weather info {}".format(xx))
-            elif "ruuviurl" in _config["decode"]:
-                xx = RuuviTagUrl().decode(ev)
-                if xx:
-                    print("Weather info {}".format(xx))
-            elif "eddy" in _config["decode"]:
-                xx = EddyStone().decode(ev)
-                if xx:
-                    print("Google Beacon {}".format(xx))
-            else:
-                # not identified
-                xx = {"messagetype": "unknown"}
+        if _config["scan"] and not is_mac_in_list(mac, _config['seen_macs'].keys()):
+            # Do the scan mode stuff
+            mesg = decode.run_decoders(_config['decode'], ev)
 
-            if _config["raw"]:
-                print("Raw data: {}".format(ev.raw_data))
-            # Do the scan stuff
-            pass
+            if mesg or not _config['decode']:
+                # Add extra info if decoding ok or we do not want decoding
+                add_packet_info(mesg, ev)
+                if not mesg:
+                    mesg['decode'] = 'Unknown'
+                _config['seen_macs'][mesg['mac']] = mesg['decode']
         else:
             # Do the gateway stuff
             # Add message to queue
-            pass
+            print("Gateway mode not yet implemented")
 
-        if mac:
-            print("mac: ", mac[0].val)
-        print("data: {}".format(data))
-        xx = RuuviTagRaw().decode(ev)
-        if xx:
-            print("RuuviTag data {}".format(xx))
+        if _config["showraw"]:
+            print("Raw data: {}".format(ev.raw_data))
 
     # ---------------------------------------------------
     # EOF callback_data_handler

@@ -43,38 +43,41 @@ def parse_cmd_line_arguments(parser):
         - to print out configuration and exit.",
     )
     parser.add_argument(
+        "-m",
+        "--allowmac",
+        type=check_mac,
+        action="append",
+        help="Filter and process these MAC addresses only. \
+        Can be combined with --scan to look for specific mac(s).",
+    )
+    parser.add_argument(
         "-S",
         "--scan",
         action="store_true",
         default=False,
         help="Start in Scan mode. Listen for broadcasts and \
         collect mac addresses. \
-        Disables forwarding of messages to any destination (writers).",
+        Disables forwarding of messages to any destination (writers). \
+        Without --decode option tries not to identify message type. \
+        ",
     )
     parser.add_argument(
         "--decode",
         metavar="DECODER",
         action="append",
         choices=["all", "ruuviraw", "ruuviurl", "eddy", "pebble"],
-        help="Optional. Decoders to use in Scan mode. \
+        help="Optional. Decoders to enable in Scan mode. \
         Has no effect if --scan not enabled. \
-        'all' will try all decoders. \
+        'all' will try all decoders. If any decoders enabled \
+        will only return macs with successfull decode. \
         ",
     )
     parser.add_argument(
-        "-m",
-        "--mac",
-        type=check_mac,
-        action="append",
-        help="Look for these MAC addresses. Combine with --scan to \
-        lookfor specific macs only.",
-    )
-    parser.add_argument(
         "-r",
-        "--raw",
+        "--showraw",
         action="store_true",
         default=False,
-        help="Show raw data for each received packet as well.",
+        help="Show raw data for each received packet regardless of mode running.",
     )
     parser.add_argument(
         "-a",
@@ -163,7 +166,15 @@ def main():
 
     print(_config)
 
+    if _config["scan"]:
+        _config['seen_macs'] = {}
+
     ble_gateway.run_ble(_config)
+
+    if _config["scan"]:
+        print("--------- Collected macs ------------:")
+    for seen in _config['seen_macs'].keys():
+        print(seen, _config['seen_macs'][seen])
 
 
 if __name__ == "__main__":
