@@ -15,11 +15,15 @@ def run_decoders(_d, ev):
         'eddy': EddyStone().decode
     }
 
-    decoders = {}
+    decoders = []
     if 'all' in _d:
         decoders = list(all_decoders.keys())
     else:
-        decoders = _d
+        for decoder in _d:
+            if decoder in all_decoders:
+                decoders.append(decoder)
+    if 'unknown' in _d:
+        decoders.append('unknown')
 
     # Try to identify the message
     xx = {}
