@@ -65,11 +65,12 @@ def parse_cmd_line_arguments(parser):
         "--decode",
         metavar="DECODER",
         action="append",
-        choices=["all", "ruuviraw", "ruuviurl", "eddy", "pebble"],
+        choices=["all", "ruuviraw", "ruuviurl", "eddy", "pebble", "unknown"],
         help="Optional. Decoders to enable in Scan mode. \
         Has no effect if --scan not enabled. \
         'all' will try all decoders. If any decoders enabled \
         will only return macs with successfull decode. \
+        'unknown' includes packets which are not decoded. \
         ",
     )
     parser.add_argument(

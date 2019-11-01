@@ -19,7 +19,7 @@ def add_packet_info(mesg, ev):
     # Add additional packet info
     for key in ['rssi', 'peer', 'tx_power']:
         info = ev.retrieve(key)
-        if info and not mesg.get[key, None]:
+        if info and not mesg.get(key, None):
             if key == 'peer':
                 key = 'mac'
             mesg[key] = info[-1].val
@@ -49,17 +49,19 @@ def run_ble(_config):
             return
 
         # Are we in SCAN mode or normal gateway mode
-        if _config["scan"] and not is_mac_in_list(mac, _config['seen_macs'].keys()):
-            # Do the scan mode stuff
-            mesg = decode.run_decoders(_config['decode'], ev)
+        if _config["scan"]:
+            if not is_mac_in_list(mac, _config['seen_macs'].keys()):
+                # Do the scan mode stuff
+                mesg = decode.run_decoders(_config['decode'], ev)
 
-            if mesg or not _config['decode']:
-                # Add extra info if decoding ok or we do not want decoding
-                if not mesg:
-                    mesg = {}
-                    mesg['decode'] = 'Unknown'
-                add_packet_info(mesg, ev)
-                _config['seen_macs'][mesg['mac']] = mesg['decode']
+                if mesg or not _config['decode']:
+                    # Add extra info if decoding ok or we do not want decoding
+                    if not mesg:
+                        mesg = {}
+                        mesg['decoder'] = 'Unknown'
+                    add_packet_info(mesg, ev)
+                    _config['seen_macs'][mesg['mac']] = mesg['decoder']
+                    print("New mac:", mesg['mac'])
         else:
             # Do the gateway stuff
             # Add message to queue

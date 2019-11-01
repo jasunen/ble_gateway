@@ -17,14 +17,16 @@ def run_decoders(_d, ev):
 
     decoders = {}
     if 'all' in _d:
-        decoders = list(all.decoders.keys())
+        decoders = list(all_decoders.keys())
     else:
         decoders = _d
 
     # Try to identify the message
     xx = {}
     for decoder in decoders:
-        func = all_decoders[decoder]
+        if decoder == 'unknown':
+            return {'decoder': 'unknown'}
+        func = all_decoders.get(decoder, None)
         if func:
             xx = func(ev)
         if xx:
