@@ -1,4 +1,5 @@
 import asyncio
+from timeit import default_timer as timer
 
 import aioblescan as aiobs
 from aioblescan.plugins import EddyStone
@@ -28,10 +29,19 @@ def add_packet_info(mesg, ev):
 # Define and run ble scanner asyncio loop
 def run_ble(_config):
 
+    # TIMING
+    _config['TIMER_SEC'] = 0.0
+    _config['TIMER_COUNT'] = 0
+    # ------------------------------
+
     # Callback process to handle data received from BLE
     # ---------------------------------------------------
     def callback_data_handler(data):
         # data = byte array of raw data received
+
+        # TIMING
+        start_t = timer()
+        # ------------------------------
 
         ev = aiobs.HCI_Event()
         ev.decode(data)
@@ -66,6 +76,11 @@ def run_ble(_config):
             # Do the gateway stuff
             # Add message to queue
             print("Gateway mode not yet implemented")
+
+        # TIMING
+        _config['TIMER_SEC'] += (timer() - start_t)
+        _config['TIMER_COUNT'] += 1
+        # ------------------------------
 
     # ---------------------------------------------------
     # EOF callback_data_handler
@@ -119,4 +134,11 @@ def run_ble(_config):
         btctrl.send_command(command)
         conn.close()
         event_loop.close()
+
+        # TIMING
+        print(_config['TIMER_COUNT'], "calls.")
+        print(1000 * 1000 * _config['TIMER_SEC'] / _config['TIMER_COUNT'],
+              "usec in average per call.")
+        # ------------------------------
+
         return 0
