@@ -52,17 +52,12 @@ class RuuviTagUrl(object):
         if url is None:
             return None
 
-        rssi = packet.retrieve("rssi")
-        if rssi:
-            result["rssi"] = rssi[-1].val
-
         power = packet.retrieve("tx_power")
         if power:
             result["tx_power"] = power[-1].val
 
         if "//ruu.vi/" in url["url"]:
             # We got a live one
-            result["mac"] = packet.retrieve("peer")[0].val
             url = url["url"].split("//ruu.vi/#")[-1]
             if len(url) > 8:
                 url = url[:-1]

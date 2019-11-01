@@ -1,73 +1,86 @@
 import asyncio
+from timeit import default_timer as timer
 
 import aioblescan as aiobs
-from aioblescan.plugins import BlueMaestro, EddyStone
+from aioblescan.plugins import EddyStone
+from ble_gateway import decode
 
-from ble_gateway.ruuvitagraw import RuuviTagRaw
-from ble_gateway.ruuvitagurl import RuuviTagUrl
+
+def is_mac_in_list(mac, macs):
+    if macs:
+        for x in mac:
+            if x.val in macs:
+                return True
+        return False
+    else:
+        return False
+
+
+def add_packet_info(mesg, ev):
+    # Add additional packet info
+    for key in ['rssi', 'peer', 'tx_power']:
+        info = ev.retrieve(key)
+        if info and not mesg.get(key, None):
+            if key == 'peer':
+                key = 'mac'
+            mesg[key] = info[-1].val
 
 
 # Define and run ble scanner asyncio loop
 def run_ble(_config):
+
+    # TIMING
+    _config['TIMER_SEC'] = 0.0
+    _config['TIMER_COUNT'] = 0
+    # ------------------------------
 
     # Callback process to handle data received from BLE
     # ---------------------------------------------------
     def callback_data_handler(data):
         # data = byte array of raw data received
 
+        # TIMING
+        start_t = timer()
+        # ------------------------------
+
         ev = aiobs.HCI_Event()
         ev.decode(data)
+
+        if _config["showraw"]:
+            print("Raw data: {}".format(ev.raw_data))
 
         # mac = list of mac addresses of the Packet (should be only one..),
         # object type aioblescan.MACaddr
         mac = ev.retrieve("peer")
-        if _config["mac"]:
-            goon = False
-            for x in mac:
-                if x.val in _config["mac"]:
-                    goon = True
-                    break
-            if not goon:
-                return
+        if not mac:
+            return
+
+        if _config['allowmac'] and not is_mac_in_list(mac, _config['allowmac']):
+            return
 
         # Are we in SCAN mode or normal gateway mode
         if _config["scan"]:
-            # Try to identify the message
-            if "pebble" in _config["decode"]:
-                xx = BlueMaestro().decode(ev)
-                if xx:
-                    print("Pebble info {}".format(xx))
-            elif "ruuviraw" in _config["decode"]:
-                xx = RuuviTagRaw().decode(ev)
-                if xx:
-                    print("Weather info {}".format(xx))
-            elif "ruuviurl" in _config["decode"]:
-                xx = RuuviTagUrl().decode(ev)
-                if xx:
-                    print("Weather info {}".format(xx))
-            elif "eddy" in _config["decode"]:
-                xx = EddyStone().decode(ev)
-                if xx:
-                    print("Google Beacon {}".format(xx))
-            else:
-                # not identified
-                xx = {"messagetype": "unknown"}
+            if not is_mac_in_list(mac, _config['seen_macs'].keys()):
+                # Do the scan mode stuff
+                mesg = decode.run_decoders(_config['decode'], ev)
 
-            if _config["raw"]:
-                print("Raw data: {}".format(ev.raw_data))
-            # Do the scan stuff
-            pass
+                if mesg or not _config['decode']:
+                    # Add extra info if decoding ok or we do not want decoding
+                    if not mesg:
+                        mesg = {}
+                        mesg['decoder'] = 'Unknown'
+                    add_packet_info(mesg, ev)
+                    _config['seen_macs'][mesg['mac']] = mesg['decoder']
+                    print("New mac:", mesg['mac'])
         else:
             # Do the gateway stuff
             # Add message to queue
-            pass
+            print("Gateway mode not yet implemented")
 
-        if mac:
-            print("mac: ", mac[0].val)
-        print("data: {}".format(data))
-        xx = RuuviTagRaw().decode(ev)
-        if xx:
-            print("RuuviTag data {}".format(xx))
+        # TIMING
+        _config['TIMER_SEC'] += (timer() - start_t)
+        _config['TIMER_COUNT'] += 1
+        # ------------------------------
 
     # ---------------------------------------------------
     # EOF callback_data_handler
@@ -121,4 +134,11 @@ def run_ble(_config):
         btctrl.send_command(command)
         conn.close()
         event_loop.close()
+
+        # TIMING
+        print(_config['TIMER_COUNT'], "calls.")
+        print(1000 * 1000 * _config['TIMER_SEC'] / _config['TIMER_COUNT'],
+              "usec in average per call.")
+        # ------------------------------
+
         return 0

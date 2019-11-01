@@ -134,10 +134,6 @@ class RuuviTagRaw(object):
         if mfg_specific_data:
             val = mfg_specific_data[0].val
             if val[0] == 0x99 and val[1] == 0x04:  # looks like Ruuvi
-                rssi = packet.retrieve("rssi")
-                if rssi:
-                    result["rssi"] = rssi[-1].val
-                result["mac"] = packet.retrieve("peer")[0].val
                 val = val[2:]
                 if val[0] == 0x03:  # data format 3
                     self._decode_df3(val, result)
