@@ -38,7 +38,6 @@ def parse_cmd_line_arguments(parser):
         "--writeconfig",
         type=str,
         metavar="FILE",
-        default="",
         help="Write configuration to FILE or \
         - to print out configuration and exit.",
     )
@@ -54,7 +53,6 @@ def parse_cmd_line_arguments(parser):
         "-S",
         "--scan",
         action="store_true",
-        default=False,
         help="Start in Scan mode. Listen for broadcasts and \
         collect mac addresses. \
         Disables forwarding of messages to any destination (writers). \
@@ -77,14 +75,12 @@ def parse_cmd_line_arguments(parser):
         "-r",
         "--showraw",
         action="store_true",
-        default=False,
         help="Show raw data for each received packet regardless of mode running.",
     )
     parser.add_argument(
         "-a",
         "--advertise",
         type=int,
-        default=0,
         help="Broadcast like an EddyStone Beacon. \
         Set the interval between packet in millisec",
     )
@@ -92,21 +88,18 @@ def parse_cmd_line_arguments(parser):
         "-u",
         "--url",
         type=str,
-        default="",
         help="When broadcasting like an EddyStone Beacon, set the url.",
     )
     parser.add_argument(
         "-t",
         "--txpower",
         type=int,
-        default=0,
         help="When broadcasting like an EddyStone Beacon, set the Tx power",
     )
     parser.add_argument(
         "-D",
         "--device",
         type=int,
-        default=0,
         help="Select the hciX device to use (default 0, i.e. hci0).",
     )
 
@@ -144,6 +137,13 @@ def write_configfile(file, _config):
 def main():
     # set default configuration parameters
     _config = benedict(keypath_separator=None)
+    _config.update({'scan': False,
+                    'showraw': False,
+                    'advertise': 0,
+                    'url': 'http://0.0.0.0/',
+                    'txpower': 0,
+                    'device': 0,
+                    'writeconfig': None})
 
     # parse command line arguments
     parser = argparse.ArgumentParser(
@@ -172,7 +172,6 @@ def main():
         print("--------- Running SCAN mode ------------:")
     else:
         print("--------- Running GATEWAY mode ------------:")
-
 
     ble_gateway.run_ble(_config)
 
