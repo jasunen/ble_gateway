@@ -49,9 +49,10 @@ def run_ble(_config):
 
             if mesg or not _config['decode']:
                 # Add extra info if decoding ok or we do not want decoding
-                add_packet_info(mesg, ev)
                 if not mesg:
+                    mesg = {}
                     mesg['decode'] = 'Unknown'
+                    add_packet_info(mesg, ev)
                 _config['seen_macs'][mesg['mac']] = mesg['decode']
         else:
             # Do the gateway stuff

@@ -168,13 +168,17 @@ def main():
 
     if _config["scan"]:
         _config['seen_macs'] = {}
+        print("--------- Running SCAN mode ------------:")
+    else:
+        print("--------- Running GATEWAY mode ------------:")
+
 
     ble_gateway.run_ble(_config)
 
     if _config["scan"]:
         print("--------- Collected macs ------------:")
-    for seen in _config['seen_macs'].keys():
-        print(seen, _config['seen_macs'][seen])
+        for seen in _config['seen_macs'].keys():
+            print(seen, _config['seen_macs'][seen])
 
 
 if __name__ == "__main__":
