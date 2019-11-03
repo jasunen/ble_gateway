@@ -10,7 +10,7 @@ from multiprocessing import Process, Queue
 import yaml
 from benedict import benedict
 
-from ble_gateway import ble_gateway
+from ble_gateway import run_ble, run_writers
 
 
 # Parse command line arguments
@@ -189,16 +189,16 @@ def main():
     if _config["scan"]:
         _config["seen_macs"] = {}
         print("--------- Running SCAN mode ------------:")
-        ble_gateway.run_ble(_config, None)
+        run_ble.run_ble(_config, None)
         print("--------- Collected macs ------------:")
         for seen in _config["seen_macs"].keys():
             print(seen, _config["seen_macs"][seen])
     else:
         print("--------- Running GATEWAY mode ------------:")
         _q = Queue()
-        _p = Process(target=ble_gateway.run_writers, args=(_config, _q))
+        _p = Process(target=run_writers.run_writers, args=(_config, _q))
         _p.start()
-        ble_gateway.run_ble(_config, _q)
+        run_ble.run_ble(_config, _q)
         _p.join()
 
 

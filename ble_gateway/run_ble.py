@@ -87,9 +87,10 @@ def run_ble(_config, _q):
             mesg = decode.run_decoders(mac_config["decoder"], ev)
             if mesg:
                 add_packet_info(mesg, ev)
-
-            # Add message to queue
-            _q.put(mesg)
+                # Add message to queue
+                _q.put(mesg)
+            else:
+                print(mac_str, "was regocnized but not able to decode!!")
 
         if _config["showraw"]:
             print("{} - Raw data: {}".format(mac[-1].val, ev.raw_data))
@@ -161,9 +162,3 @@ def run_ble(_config, _q):
         # ------------------------------
 
         return 0
-
-
-# Run "writers" which take care of forwarding BLE messages to
-# destinations defined in the configuration
-def run_writers(_config, _q):
-    pass
