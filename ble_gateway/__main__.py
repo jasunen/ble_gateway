@@ -5,6 +5,7 @@ import argparse
 import os
 import re
 import sys
+from multiprocessing import Process, Queue
 
 import yaml
 from benedict import benedict
@@ -47,7 +48,9 @@ def parse_cmd_line_arguments(parser):
         type=check_mac,
         action="append",
         help="Filter and process these MAC addresses only. \
-        Can be combined with --scan to look for specific mac(s).",
+        Can be combined with --scan to look for specific mac(s) only. \
+        In Gateway mode forwards messages from specified mac(s) only. \
+        Note that this overrides allowmac list in the configuration file, if any.",
     )
     parser.add_argument(
         "-S",
@@ -137,13 +140,29 @@ def write_configfile(file, _config):
 def main():
     # set default configuration parameters
     _config = benedict(keypath_separator=None)
-    _config.update({'scan': False,
-                    'showraw': False,
-                    'advertise': 0,
-                    'url': 'http://0.0.0.0/',
-                    'txpower': 0,
-                    'device': 0,
-                    'writeconfig': None})
+    _config.update(
+        {
+            "scan": False,
+            "allowmac": [],
+            "showraw": False,
+            "advertise": 0,
+            "url": "http://0.0.0.0/",
+            "txpower": 0,
+            "device": 0,
+            "writeconfig": None,
+            "no_messages_timeout": 600,
+            "sources": {
+                "default": {
+                    "decoders": ["all", "unknown"],
+                    "destinations": ["default_file"],
+                    "intervall": 10,
+                }
+            },
+            "destinations": {
+                "default_file": {"type": "file", "filename": "default_file.out"}
+            },
+        }
+    )
 
     # parse command line arguments
     parser = argparse.ArgumentParser(
@@ -168,17 +187,19 @@ def main():
     print(_config)
 
     if _config["scan"]:
-        _config['seen_macs'] = {}
+        _config["seen_macs"] = {}
         print("--------- Running SCAN mode ------------:")
+        ble_gateway.run_ble(_config, None)
+        print("--------- Collected macs ------------:")
+        for seen in _config["seen_macs"].keys():
+            print(seen, _config["seen_macs"][seen])
     else:
         print("--------- Running GATEWAY mode ------------:")
-
-    ble_gateway.run_ble(_config)
-
-    if _config["scan"]:
-        print("--------- Collected macs ------------:")
-        for seen in _config['seen_macs'].keys():
-            print(seen, _config['seen_macs'][seen])
+        _q = Queue()
+        _p = Process(target=ble_gateway.run_writers, args=(_config, _q))
+        _p.start()
+        ble_gateway.run_ble(_config, _q)
+        _p.join()
 
 
 if __name__ == "__main__":
