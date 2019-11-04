@@ -152,6 +152,8 @@ def run_ble(_config, _q):
         btctrl.send_command(command)
         conn.close()
         event_loop.close()
+        if _q:
+            _q.close()
 
         # TIMING
         print(_config["TIMER_COUNT"], "calls.")
