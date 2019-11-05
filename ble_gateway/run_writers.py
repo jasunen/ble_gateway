@@ -7,7 +7,7 @@ from multiprocessing import Queue
 def run_writers(_config, _q):
     # Instanciate all destination objects with proper configuration
 
-    while True:
+    while True:  # may be should use while _q.not closed() ???
         try:
             mesg = _q.get(True, _config["no_messages_timeout"])
         except Queue.Empty:

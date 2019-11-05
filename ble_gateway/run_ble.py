@@ -35,9 +35,9 @@ def run_ble(_config, _q):
     _config["TIMER_COUNT"] = 0
     # ------------------------------
 
-    allowed_macs = _config["allowmac"]
-    source_macs = _config.get("sources", None)
-    default_mac_config = source_macs.get("default", None)
+    allowed_macs = _config.get("allowmac", [])
+    source_macs = _config.get("sources", {})
+    default_mac_config = source_macs.get("default", {})
 
     # Callback process to handle data received from BLE
     # ---------------------------------------------------
@@ -152,8 +152,6 @@ def run_ble(_config, _q):
         btctrl.send_command(command)
         conn.close()
         event_loop.close()
-        if _q:
-            _q.close()
 
         # TIMING
         print(_config["TIMER_COUNT"], "calls.")

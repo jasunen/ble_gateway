@@ -152,14 +152,26 @@ def main():
             "writeconfig": None,
             "no_messages_timeout": 600,
             "sources": {
-                "default": {
+                "_DEFAULTS_": {
                     "decoders": ["all", "unknown"],
                     "destinations": ["default_file"],
                     "intervall": 10,
-                }
+                    # fields in fields_order will be first, other fields remain as is
+                    "fields_order": ["timestamp", "mac"],
+                    "tags": ["gateway=raspi4"]  # list vs dict vs list of tuples??
+                },
             },
             "destinations": {
-                "default_file": {"type": "file", "filename": "default_file.out"}
+                "_DEFAULTS_": {
+                    "fields_rename": {
+                        "peer": "mac",
+                    },
+                    "fields_remove": ["tx_power"],
+                },
+                "default_file": {
+                    "type": "file",
+                    "filename": "default_file.out"
+                },
             },
         }
     )
