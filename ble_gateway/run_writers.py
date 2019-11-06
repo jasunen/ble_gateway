@@ -18,6 +18,11 @@ def run_writers(_config, _q):
         # got message, let's process it
         timestamp = int(time.time() * 1000)  # timestamp in milliseconds
         print(timestamp, " - let's write", mesg)
+        # When packet is received, do per source modifications:
+        # 1. Remove fields
+        # 2. Rename fields
+        # 3. Add fields
+        # 4. Order fields
 
     # Breaking out of the loop
     # Clean-up, close handels and files if any and return

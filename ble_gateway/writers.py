@@ -5,13 +5,16 @@ class Writer:
     # Parent class for all the writer classes
 
     def __init__(self, wname, wconfig):
+        # each subclass init() should call super().__init__()
         self.name = wname
         self.type = wconfig["type"]
         self.intervall = wconfig.get("intervall", 0)
+        self.packetcount = 0
 
-    def process(self, mesg, mconfig):
-        # Each writer should implement destination type specific process()
-        pass
+    def process_msg(self, mesg, mconfig):
+        # Each writer subclass should implement destination specific process()
+        # and call parent.process()
+        self.packetcount += 1
 
     def order_fields(self, mesg, fields):
         ordered_fields = {}
@@ -70,6 +73,12 @@ class ThingspeakWriter(Writer):
         super().__init__(wname, wconfig)
 
 
+class DROP(Writer):
+    # Writer class for Thingspeak destination
+    def __init__(self, wname, wconfig):
+        super().__init__(wname, wconfig)
+
+
 class Writers:
     # collection of writer classes
 
@@ -79,6 +88,7 @@ class Writers:
             "file": FileWriter,
             "influxdb": InfluxDBWriter,
             "thingspeak": ThingspeakWriter,
+            "DROP": DROP,
         }
 
     def addWriter(self, wname, wconfig):

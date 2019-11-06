@@ -152,6 +152,10 @@ def main():
             "writeconfig": None,
             "no_messages_timeout": 600,
             "sources": {
+                # Settings defined in source _DEFAULTS_ are applied first
+                # to all other defined sources. Additional settings
+                # defined for a particular source will override settings
+                # inherited from _DEFAULTS_
                 "_DEFAULTS_": {
                     "decoders": ["all", "unknown"],
                     "destinations": ["default_file"],
@@ -160,8 +164,19 @@ def main():
                     "fields_order": ["timestamp", "mac"],
                     "tags": ["gateway=raspi4"]  # list vs dict vs list of tuples??
                 },
+                # source settings for "_UNKNOWN_" will be applied to packets
+                # which are not matched to any mac in "sources"
+                "_UNKNOWN_": {
+                    # There is built-in destination called DROP which just discards
+                    # the packet and can be used in any source definition
+                    "destinations": ["DROP"],
+                },
             },
             "destinations": {
+                # Settings defined in destination _DEFAULTS_ are applied first
+                # to all defined destinations. Additional settings
+                # defined for a particular destination will override settings
+                # inherited from _DEFAULTS_
                 "_DEFAULTS_": {
                     "fields_rename": {
                         "peer": "mac",
