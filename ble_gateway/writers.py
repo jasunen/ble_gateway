@@ -12,8 +12,8 @@ class Writer:
         self.packetcount = 0
 
     def process_msg(self, mesg, mconfig):
-        # Each writer subclass should implement destination specific process()
-        # and call parent.process()
+        # Each writer subclass should implement destination specific process
+        # and call super().process_msg()
         self.packetcount += 1
 
     def order_fields(self, mesg, fields):
@@ -73,10 +73,14 @@ class ThingspeakWriter(Writer):
         super().__init__(wname, wconfig)
 
 
-class DROP(Writer):
-    # Writer class for Thingspeak destination
+class DropWriter(Writer):
+    # Will simply drop the packet
     def __init__(self, wname, wconfig):
         super().__init__(wname, wconfig)
+
+    def process_msg(self, mesg, mconfig):
+        super().process_msg(mesg, mconfig)
+        return True
 
 
 class Writers:
@@ -88,10 +92,10 @@ class Writers:
             "file": FileWriter,
             "influxdb": InfluxDBWriter,
             "thingspeak": ThingspeakWriter,
-            "DROP": DROP,
+            "DROP": DropWriter,
         }
 
-    def addWriter(self, wname, wconfig):
+    def add_writer(self, wname, wconfig):
         wtype = wconfig.get("type", None)
         if wtype in self.writer_classes:
             new_writer = self.writer_classes[wtype](wname, wconfig)
@@ -101,11 +105,11 @@ class Writers:
         else:
             return None
 
-    def addWriters(self, wnames, wconfig):
+    def add_writers(self, wnames, wconfig):
         if isinstance(wnames, (list, tuple)):
             for wname in wnames:
                 self.addWriter(wname, wconfig)
             return self.all_writers
 
-    def getWriter(self, wname):
+    def get_writer(self, wname):
         return self.all_writers.get[wname, None]

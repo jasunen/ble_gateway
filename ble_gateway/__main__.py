@@ -7,14 +7,13 @@ import re
 import sys
 from multiprocessing import Process, Queue
 
-import yaml
-from benedict import benedict
-
-from ble_gateway import run_ble, run_writers
+from ble_gateway import config_management, defs, run_ble, run_writers
 
 
-# Parse command line arguments
-def parse_cmd_line_arguments(parser):
+def define_cmd_line_arguments(parser):
+    # Add command line arguments to the parser
+
+    # helper func to verify macaddress
     def check_mac(val):
         try:
             if re.match(
@@ -25,6 +24,9 @@ def parse_cmd_line_arguments(parser):
             print("Error: " + str(e))
         raise argparse.ArgumentTypeError("%s is not a MAC address" % val)
 
+    #
+    # !! Use lowercase and no whitespaces in parameter names !!
+    #
     parser.add_argument(
         "-c",
         "--configfile",
@@ -56,10 +58,10 @@ def parse_cmd_line_arguments(parser):
         "-S",
         "--scan",
         action="store_true",
-        help="Start in Scan mode. Listen for broadcasts and \
+        help="Start in Scan mode. Listen to broadcasts and just \
         collect mac addresses. \
         Disables forwarding of messages to any destination (writers). \
-        Without --decode option tries not to identify message type. \
+        With --decode option tries to identify message type. \
         ",
     )
     parser.add_argument(
@@ -107,127 +109,59 @@ def parse_cmd_line_arguments(parser):
     )
 
 
-# EOF parse_cmd_line_arguments
-
-
-def load_configfile(file, _config):
-    # If file exists, returns the content (MUST BE YAML) as dict
-    # and updates _config
-    if file == "-":
-        return {}
-    if os.path.isfile(file):
-        with open(file) as f:
-            print("Reading configfile:", file)
-            _read = yaml.load(f, Loader=yaml.FullLoader)
-        _config.update(_read)
-        return _read
-    else:
-        print("No configfile found:", file)
-        return {}  # empty dict if file not found
-
-
-def write_configfile(file, _config):
-    print("Writing configfile:", file)
-    _out = {}
-    _out.update(_config)
-    if file == "-":
-        print(yaml.dump(_out))
-    else:
-        with open(file, "w") as f:
-            yaml.dump(_out, f)
+# EOF add_cmd_line_arguments
 
 
 def main():
-    # set default configuration parameters
-    _config = benedict(keypath_separator=None)
-    _config.update(
-        {
-            "scan": False,
-            "allowmac": [],
-            "showraw": False,
-            "advertise": 0,
-            "url": "http://0.0.0.0/",
-            "txpower": 0,
-            "device": 0,
-            "writeconfig": None,
-            "no_messages_timeout": 600,
-            "sources": {
-                # Settings defined in source _DEFAULTS_ are applied first
-                # to all other defined sources. Additional settings
-                # defined for a particular source will override settings
-                # inherited from _DEFAULTS_
-                "_DEFAULTS_": {
-                    "decoders": ["all", "unknown"],
-                    "destinations": ["default_file"],
-                    "intervall": 10,
-                    # fields in fields_order will be first, other fields remain as is
-                    "fields_order": ["timestamp", "mac"],
-                    "tags": ["gateway=raspi4"]  # list vs dict vs list of tuples??
-                },
-                # source settings for "_UNKNOWN_" will be applied to packets
-                # which are not matched to any mac in "sources"
-                "_UNKNOWN_": {
-                    # There is built-in destination called DROP which just discards
-                    # the packet and can be used in any source definition
-                    "destinations": ["DROP"],
-                },
-            },
-            "destinations": {
-                # Settings defined in destination _DEFAULTS_ are applied first
-                # to all defined destinations. Additional settings
-                # defined for a particular destination will override settings
-                # inherited from _DEFAULTS_
-                "_DEFAULTS_": {
-                    "fields_rename": {
-                        "peer": "mac",
-                    },
-                    "fields_remove": ["tx_power"],
-                },
-                "default_file": {
-                    "type": "file",
-                    "filename": "default_file.out"
-                },
-            },
-        }
-    )
 
-    # parse command line arguments
+    # Create configuration object with default configuration parameters
+    config = config_management.Configuration(defs.DEFAULT_CONFIG)
+
+    # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="BLE Gateway - sends advertised packets to a database"
     )
-    parse_cmd_line_arguments(parser)
+    define_cmd_line_arguments(parser)
+    _opts = None
     try:
         _opts = parser.parse_args()
     except Exception as e:
         parser.error("Error: " + str(e))
-        sys.exit()
+        return 1
 
-    load_configfile(_opts.configfile, _config)
+    # Read config file and
+    # merge command line arguments into current configuration
+    config.load_configfile(_opts.configfile)
 
-    # merge command line arguments into final configuration
-    _config.update(vars(_opts))
+    # Command line parameters override defaults and configuration file
+    config.update_section(defs.C_SEC_COMMON, vars(_opts))
+
+    # Finally fill missing source and destination
+    # definitions with _defaults_ values
+    config.apply_defaults_to_sources_and_destinations()
 
     if _opts.writeconfig:
-        write_configfile(_opts.writeconfig, _config)
+        config.write_configfile(_opts.writeconfig)
         return 0
 
-    print(_config)
+    print(config.dump())
 
-    if _config["scan"]:
-        _config["seen_macs"] = {}
-        print("--------- Running SCAN mode ------------:")
-        run_ble.run_ble(_config, None)
+    if config.SCANMODE:
+        config.SEEN_MACS = {}
+        print("--------- Running in SCAN mode ------------:")
+        run_ble.run_ble(config)
         print("--------- Collected macs ------------:")
-        for seen in _config["seen_macs"].keys():
-            print(seen, _config["seen_macs"][seen])
+        for seen in config.SEEN_MACS.keys():
+            print(seen, config.SEEN_MACS[seen])
     else:
-        print("--------- Running GATEWAY mode ------------:")
-        _q = Queue()
-        _p = Process(target=run_writers.run_writers, args=(_config, _q))
+        print("--------- Running in GATEWAY mode ------------:")
+        config.Q = Queue()
+        _p = Process(target=run_writers.run_writers, args=(config,))
         _p.start()
-        run_ble.run_ble(_config, _q)
+        run_ble.run_ble(config)
         _p.join()
 
 
 if __name__ == "__main__":
-    main()
+    exit_code = main()
+    sys.exit(exit_code)

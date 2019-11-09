@@ -6,6 +6,8 @@ from multiprocessing import Queue
 # destinations defined in the configuration
 def run_writers(_config, _q):
     # Instanciate all destination objects with proper configuration
+    # writers = Writers()
+    # writers.add
 
     while True:  # may be should use while _q.not closed() ???
         try:

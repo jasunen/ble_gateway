@@ -5,7 +5,7 @@ from timeit import default_timer as timer
 import aioblescan as aiobs
 from aioblescan.plugins import EddyStone
 
-from ble_gateway import decode
+from ble_gateway import decode, defs, helpers
 
 
 def is_mac_in_list(mac_str, macs):
@@ -21,23 +21,25 @@ def add_packet_info(mesg, ev):
     # Add additional packet info
     for key in ["rssi", "peer", "tx_power"]:
         info = ev.retrieve(key)
+        # We use name 'mac' instead of 'peer'
+        if key == "peer":
+            key = "mac"
         if info and not mesg.get(key, None):
-            if key == "peer":
-                key = "mac"
-            mesg[key] = info[-1].val
+            mesg[key] = helpers._lowercase(info[-1].val)
 
 
 # Define and run ble scanner asyncio loop
-def run_ble(_config, _q):
+def run_ble(config):
 
     # TIMING
-    _config["TIMER_SEC"] = 0.0
-    _config["TIMER_COUNT"] = 0
+    config.TIMER_SEC = 0.0
+    config.TIMER_COUNT = 0
     # ------------------------------
 
-    allowed_macs = _config.get("allowmac", [])
-    source_macs = _config.get("sources", {})
-    default_mac_config = source_macs.get("default", {})
+    allowed_macs = config.find_by_key("allowmac", [])
+    source_macs = config.find_by_key(defs.C_SEC_SOURCES, {})
+    config.DECODE = config.find_by_key("decode", [])
+    config.SHOWRAW = config.find_by_key("showraw", None)
 
     # Callback process to handle data received from BLE
     # ---------------------------------------------------
@@ -62,24 +64,23 @@ def run_ble(_config, _q):
             return
 
         # Are we in SCAN mode or normal gateway mode
-        if _config["scan"]:
+        if config.SCANMODE:
             # Do the scan mode stuff
-            mesg = decode.run_decoders(_config["decode"], ev)
+            mesg = decode.run_decoders(config.DECODE, ev)
 
-            if mesg or not _config["decode"]:
+            if mesg or not config.DECODE:
                 # Add extra info if decoding ok or we do not want decoding
                 if not mesg:
                     mesg = {}
-                    mesg["decoder"] = "Unknown"
+                    mesg["decoder"] = "unknown"
                 add_packet_info(mesg, ev)
-                if not is_mac_in_list(mac, _config["seen_macs"].keys()):
-                    _config["seen_macs"][mesg["mac"]] = mesg["decoder"]
+                if not is_mac_in_list(mac, config.SEEN_MACS.keys()):
+                    config.SEEN_MACS[mesg["mac"]] = mesg["decoder"]
                 print(datetime.now(), mac_str, mesg)
         else:
             # Do the gateway stuff
             # Get instructions what to do with the mac
             mac_config = source_macs.get(mac_str, None)
-            mac_config = {**default_mac_config, **mac_config}
             if not mac_config:
                 print("Don't know what to do with", mac_str)
                 return
@@ -88,16 +89,16 @@ def run_ble(_config, _q):
             if mesg:
                 add_packet_info(mesg, ev)
                 # Add message to queue
-                _q.put(mesg)
+                config.Q.put(mesg)
             else:
                 print(mac_str, "was regocnized but not able to decode!!")
 
-        if _config["showraw"]:
+        if config.SHOWRAW:
             print("{} - Raw data: {}".format(mac[-1].val, ev.raw_data))
 
         # TIMING
-        _config["TIMER_SEC"] += timer() - start_t
-        _config["TIMER_COUNT"] += 1
+        config.TIMER_SEC += timer() - start_t
+        config.TIMER_COUNT += 1
         # ------------------------------
 
     # ---------------------------------------------------
@@ -106,7 +107,7 @@ def run_ble(_config, _q):
     event_loop = asyncio.get_event_loop()
 
     # First create and configure a raw socket
-    mysocket = aiobs.create_bt_socket(_config["device"])
+    mysocket = aiobs.create_bt_socket(config.find_by_key("device", None))
 
     # create a connection with the socket
     fac = event_loop._create_connection_transport(
@@ -120,19 +121,20 @@ def run_ble(_config, _q):
     btctrl.process = callback_data_handler
 
     # We can also send advertisements if needed
-    if _config["advertise"]:
+    if config.find_by_key("advertise", None):
         command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
         btctrl.send_command(command)
         command = aiobs.HCI_Cmd_LE_Set_Advertised_Params(
-            interval_min=_config["advertise"], interval_max=_config["advertise"]
+            interval_min=config.find_by_key("advertise", None),
+            interval_max=config.find_by_key("advertise", None),
         )
         btctrl.send_command(command)
-        if _config["url"]:
-            myeddy = EddyStone(param=_config["url"])
+        if config.find_by_key("url", None):
+            myeddy = EddyStone(param=config.find_by_key("url", None))
         else:
             myeddy = EddyStone()
-        if _config["txpower"]:
-            myeddy.power = _config["txpower"]
+        if config.find_by_key("txpower", None):
+            myeddy.power = config.find_by_key("txpower", None)
         command = aiobs.HCI_Cmd_LE_Set_Advertised_Msg(msg=myeddy)
         btctrl.send_command(command)
         command = aiobs.HCI_Cmd_LE_Advertise(enable=True)
@@ -154,9 +156,9 @@ def run_ble(_config, _q):
         event_loop.close()
 
         # TIMING
-        print(_config["TIMER_COUNT"], "calls.")
+        print(config.TIMER_COUNT, "calls.")
         print(
-            1000 * 1000 * _config["TIMER_SEC"] / _config["TIMER_COUNT"],
+            1000 * 1000 * config.TIMER_SEC / config.TIMER_COUNT,
             "usec in average per call.",
         )
         # ------------------------------
