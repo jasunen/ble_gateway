@@ -1,9 +1,25 @@
-advertise: 0
-device: 0
-eddy: false
-mac: null
-pebble: false
-raw: false
-ruuvi: false
-txpower: 0
-url: ''
+#
+common:
+  device: 1
+  scan: true
+  showraw: false
+  advertise: null
+  allowmac: null
+  configfile: '-'
+  decode: all
+  txpower: null
+  url: null
+  writeconfig: ./ble_gateway/ble_gateway.config.defaults.yaml
+#
+destinations:
+  default_file:
+    filename: default_file.log
+    type: file
+#
+sources:
+  defaults:
+    decoders:
+    - all
+    destinations:
+    - default_file
+    intervall: 20

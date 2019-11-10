@@ -1,14 +1,20 @@
+#
+device: 1
+scan: true
+showraw: false
 advertise: null
 allowmac: null
 configfile: '-'
-decode: null
+decode: all
+txpower: null
+url: null
+writeconfig: ./ble_gateway/ble_gateway.config.defaults.yaml
+#
 destinations:
   default_file:
     filename: default_file.out
     type: file
-device: null
-scan: false
-showraw: false
+#
 sources:
   default:
     decoders:
@@ -17,6 +23,3 @@ sources:
     destinations:
     - default_file
     intervall: 10
-txpower: null
-url: null
-writeconfig: ./ble_gateway/ble_gateway.config.defaults.yaml

@@ -5,7 +5,7 @@ from timeit import default_timer as timer
 import aioblescan as aiobs
 from aioblescan.plugins import EddyStone
 
-from ble_gateway import decode, defs, helpers
+from ble_gateway import decode, helpers
 
 
 def is_mac_in_list(mac_str, macs):
@@ -36,11 +36,6 @@ def run_ble(config):
     config.TIMER_COUNT = 0
     # ------------------------------
 
-    allowed_macs = config.find_by_key("allowmac", [])
-    source_macs = config.find_by_key(defs.C_SEC_SOURCES, {})
-    config.DECODE = config.find_by_key("decode", [])
-    config.SHOWRAW = config.find_by_key("showraw", None)
-
     # Callback process to handle data received from BLE
     # ---------------------------------------------------
     def callback_data_handler(data):
@@ -60,7 +55,7 @@ def run_ble(config):
             return
         mac_str = mac[-1].val
 
-        if allowed_macs and not is_mac_in_list(mac_str, allowed_macs):
+        if config.ALLOWED_MACS and not is_mac_in_list(mac_str, config.ALLOWED_MACS):
             return
 
         # Are we in SCAN mode or normal gateway mode
@@ -80,7 +75,7 @@ def run_ble(config):
         else:
             # Do the gateway stuff
             # Get instructions what to do with the mac
-            mac_config = source_macs.get(mac_str, None)
+            mac_config = config.SOURCE_MACS.get(mac_str, None)
             if not mac_config:
                 print("Don't know what to do with", mac_str)
                 return

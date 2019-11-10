@@ -1,3 +1,4 @@
+import copy
 import os
 
 import yaml
@@ -9,36 +10,53 @@ from ble_gateway import defs
 
 
 class Configuration:
-    def __init__(self, default_config):
+    def __init__(self):
         # Configuration has following sections:
         # 'common', 'sources', 'destinations'
-        self.__config_sections = {
-            defs.C_SEC_COMMON: benedict(keypath_separator=None),
-            defs.C_SEC_SOURCES: benedict(keypath_separator=None),
-            defs.C_SEC_DESTINATIONS: benedict(keypath_separator=None),
-        }
-        self.update_all(default_config)
+        # Inits using default config from defs
+        self.__config_sections = [
+            defs.C_SEC_COMMON,
+            defs.C_SEC_SOURCES,
+            defs.C_SEC_DESTINATIONS,
+        ]
+        self.__config = benedict(keypath_separator=None)
+        self.update_config(defs.DEFAULT_CONFIG, False)
 
-    def update_all(self, d):
-        if d:
-            d = benedict(d, keypath_separator=None)
-            d.standardize()
-            for section in self.__config_sections:
-                if section in d:
-                    self.update_section(section, d)
+    def update_config(self, new_config_d, merge):
+        if not new_config_d or not isinstance(new_config_d, dict):
+            return
 
-    def update_section(self, s, d):
-        if d and s:
-            d = benedict(d, keypath_separator=None)
-            d.standardize()
-            self.__config_sections[s].update(d)
+        new_config_d = benedict(**new_config_d, keypath_separator=None)
+        new_config_d.standardize()
+        if merge:
+            self.__config.merge(new_config_d)
+        else:
+            self.__config.update(new_config_d)
 
-    def apply_defaults_to_sources_and_destinations(self):
-        for section in self.__config_sections.values():
-            defaults = section.get("_defaults_", {})
-            if defaults:
-                for k, d in section.items():
-                    section[k] = {**defaults, **d}
+        for section in self.__config_sections:
+            defaults = self.__config[section].get("defaults", None)
+            if defaults and isinstance(defaults, dict):
+                defaults = copy.deepcopy(self.__config[section]["defaults"])
+                for k, d in self.__config[section].items():
+                    if k != "defaults":
+                        new_d = copy.deepcopy(d)
+                        self.__config[section][k] = {}
+                        self.__config[section][k].update(defaults)
+                        self.__config[section][k].update(new_d)
+
+        self.ALLOWED_MACS = self.find_by_key("allowmac", [])
+        self.SOURCE_MACS = self.find_by_key(defs.C_SEC_SOURCES, {})
+        self.DESTINATIONS = self.find_by_key(defs.C_SEC_DESTINATIONS, {})
+        self.SCANMODE = self.find_by_key("scan", False)
+        self.DECODE = self.find_by_key("decode", [])
+        self.SHOWRAW = self.find_by_key("showraw", False)
+
+    def find_by_key(self, key, default):
+        for section in self.__config_sections:
+            found = self.__config[section].get(key, None)
+            if found is not None:
+                return found
+        return default
 
     def load_configfile(self, file):
         # If file exists, reads the content (MUST BE YAML)
@@ -48,26 +66,23 @@ class Configuration:
         if os.path.isfile(file):
             with open(file) as f:
                 print("Reading configfile:", file)
-                self.update_all(yaml.load(f, Loader=yaml.FullLoader))
+                d = yaml.load(f, Loader=yaml.FullLoader)
+                self.update_config(d, True)
             return True
         else:
             print("No configfile found:", file)
             return None
 
     def write_configfile(self, file):
-        print("Writing configfile:", file)
         _out = {}
-        for section in self.__config_sections:
-            _out.update(self.__config_sections.get_dict(section))
+        _out.update(self.__config)
         if file == "-":
+            print("Running config:")
             print(yaml.dump(_out))
         else:
+            print("Writing configfile:", file)
             with open(file, "w") as f:
                 yaml.dump(_out, f)
 
-    def find_by_key(self, key, default):
-        for section in self.__config_sections.values():
-            found = section.get(key, None)
-            if found:
-                return found
-        return default
+    def print(self):
+        self.write_configfile("-")
