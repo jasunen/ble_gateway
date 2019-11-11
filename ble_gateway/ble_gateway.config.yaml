@@ -1,25 +1,32 @@
 #
 common:
   device: 1
-  scan: true
+  scan: false
   showraw: false
   advertise: null
   allowmac: null
-  configfile: '-'
   decode: all
-  txpower: null
+  txpower: 0
   url: null
-  writeconfig: ./ble_gateway/ble_gateway.config.defaults.yaml
+  writeconfig: null
 #
 destinations:
   default_file:
-    filename: default_file.log
+    filename: default_file.LOG
     type: file
 #
 sources:
+  E2:E2:4F:4D:6C:77:
+    decoders:
+    - ruuviraw
+    fields_add:
+    - location=Makuuhuone
   defaults:
     decoders:
     - all
     destinations:
     - default_file
     intervall: 20
+# Bogus sections
+something:
+  invalid: whatnot

@@ -1,10 +1,11 @@
 import copy
 import os
+import sys
 
-import yaml
+import ruamel.yaml
 from benedict import benedict
 
-from ble_gateway import defs
+from ble_gateway import defs, helpers
 
 # from ble_gateway import defaults
 
@@ -22,27 +23,56 @@ class Configuration:
         self.__config = benedict(keypath_separator=None)
         self.update_config(defs.DEFAULT_CONFIG, False)
 
+    def get_config_dict(self):
+        return self.__config
+
     def update_config(self, new_config_d, merge):
         if not new_config_d or not isinstance(new_config_d, dict):
             return
 
-        new_config_d = benedict(**new_config_d, keypath_separator=None)
-        new_config_d.standardize()
+        #
+        # benedict.standardize messes up mac addresses !!!
+        # new_config_d = benedict(new_config_d, keypath_separator=None)
+        # new_config_d.standardize()
+        # need to use self-made function
+        new_config_d = helpers._lowercase_keys(new_config_d)
         if merge:
             self.__config.merge(new_config_d)
         else:
             self.__config.update(new_config_d)
 
+        # Verifay that configuration includes only known sections
+        # Remove invalid sections
+        for section in list(self.__config.keys()):
+            if section not in self.__config_sections:
+                del self.__config[section]
+                print("Removing uknown section '{}' in configuration.".format(section))
+
+        # Apply defaults to source and destination definitions
         for section in self.__config_sections:
-            defaults = self.__config[section].get("defaults", None)
+            defaults = self.__config[section].pop("defaults", None)
             if defaults and isinstance(defaults, dict):
-                defaults = copy.deepcopy(self.__config[section]["defaults"])
                 for k, d in self.__config[section].items():
-                    if k != "defaults":
+                    self.__config[section][k] = {}
+                    self.__config[section][k].update(defaults)
+                    if isinstance(d, dict):
+                        new_d = {}
                         new_d = copy.deepcopy(d)
-                        self.__config[section][k] = {}
-                        self.__config[section][k].update(defaults)
                         self.__config[section][k].update(new_d)
+                self.__config[section]["defaults"] = {}
+                self.__config[section]["defaults"].update(defaults)
+        #
+        # NOTE !!!!!!!!!!!!!!!!!
+        # beendict().standardize() re-formats mac addresses by
+        # replacing ':' with '_'
+        # Need to parse macs (keys) in SOURCE_MACS and rename if wrong format
+        #
+        for mac in list(self.__config[defs.C_SEC_SOURCES].keys()):
+            new_mac = helpers.check_and_format_mac(mac)
+            if new_mac:
+                self.__config[defs.C_SEC_SOURCES][new_mac] = self.__config[
+                    defs.C_SEC_SOURCES
+                ].pop(mac)
 
         self.ALLOWED_MACS = self.find_by_key("allowmac", [])
         self.SOURCE_MACS = self.find_by_key(defs.C_SEC_SOURCES, {})
@@ -66,7 +96,11 @@ class Configuration:
         if os.path.isfile(file):
             with open(file) as f:
                 print("Reading configfile:", file)
-                d = yaml.load(f, Loader=yaml.FullLoader)
+                yaml = ruamel.yaml.YAML()
+                # yaml = ruamel.yaml.YAML(typ="safe", pure=True)
+                # d = yaml.load(f, Loader=yaml.BaseLoader)
+                d = yaml.load(f)
+                # d = yaml.safe_load(f)
                 self.update_config(d, True)
             return True
         else:
@@ -76,9 +110,11 @@ class Configuration:
     def write_configfile(self, file):
         _out = {}
         _out.update(self.__config)
+        yaml = ruamel.yaml.YAML()
+        # yaml = ruamel.yaml.YAML(typ="safe", pure=True)
         if file == "-":
             print("Running config:")
-            print(yaml.dump(_out))
+            yaml.dump(_out, sys.stdout)
         else:
             print("Writing configfile:", file)
             with open(file, "w") as f:

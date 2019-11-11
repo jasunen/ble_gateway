@@ -10,6 +10,8 @@ python_version = "3.7"
 aioblescan = "*"
 python-benedict = "*"
 pyyaml = "*"
+influxdb = "*"
+ruamel-yaml = "*"
 
 [dev-packages]
 black = "==19.3b0"

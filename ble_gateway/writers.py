@@ -105,11 +105,11 @@ class Writers:
         else:
             return None
 
-    def add_writers(self, wnames, wconfig):
-        if isinstance(wnames, (list, tuple)):
-            for wname in wnames:
-                self.addWriter(wname, wconfig)
-            return self.all_writers
+    def add_writers(self, wconfigs):
+        for wname in wconfigs:
+            if wname != "defaults":
+                self.addWriter(wname, wconfigs[wname])
+        return self.all_writers
 
     def get_writer(self, wname):
         return self.all_writers.get[wname, None]

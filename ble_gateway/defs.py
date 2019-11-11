@@ -41,7 +41,7 @@ DEFAULT_CONFIG = {
         "DA:B6:F7:69:C3:45": {
             "decoders": ["ruuviraw"],
             # fields in fields_order will be first, other fields remain as is
-            "fields_add": ["gateway=raspi4"],  # list vs dict vs list of tuples??
+            "fields_add": ["location=Ulkona"],  # list vs dict vs list of tuples??
         },
         # source settings for "_UNKNOWN_" will be applied to packets
         # which are not matched to any mac in "sources"

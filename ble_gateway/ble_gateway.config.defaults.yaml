@@ -1,25 +1,67 @@
-#
-device: 1
-scan: true
-showraw: false
-advertise: null
-allowmac: null
-configfile: '-'
-decode: all
-txpower: null
-url: null
-writeconfig: ./ble_gateway/ble_gateway.config.defaults.yaml
-#
+common:
+  advertise: null
+  allowmac: null
+  configfile: /home/jani/Projects/ble_gateway/ble_gateway/ble_gateway.config.yaml
+  decode: null
+  device: 1
+  no_messages_timeout: 600
+  scan: true
+  showraw: false
+  txpower: null
+  url: null
+  writeconfig: ./ble_gateway/ble_gateway.config.defaults.yaml
 destinations:
   default_file:
-    filename: default_file.out
+    fields_remove:
+    - tx_power
+    fields_rename:
+      peer: mac
+    filename: default_file.log
     type: file
-#
+  defaults:
+    fields_remove:
+    - tx_power
+    fields_rename:
+      peer: mac
 sources:
-  default:
+  da:b6:f7:69:c3:45:
+    decoders:
+    - ruuviraw
+    destinations:
+    - default_file
+    fields_add:
+    - location=Ulkona
+    fields_order:
+    - timestamp
+    - mac
+    intervall: 10
+  defaults:
+    decoders:
+    - all
+    destinations:
+    - default_file
+    fields_order:
+    - timestamp
+    - mac
+    intervall: 20
+  e2_e2_4_f_4_d_6_c_77:
+    decoders:
+    - ruuviraw
+    destinations:
+    - default_file
+    fields_add:
+    - location=Makuuhuone
+    fields_order:
+    - timestamp
+    - mac
+    intervall: 20
+  unknown:
     decoders:
     - all
     - unknown
     destinations:
-    - default_file
+    - DROP
+    fields_order:
+    - timestamp
+    - mac
     intervall: 10
