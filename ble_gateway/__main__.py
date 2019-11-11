@@ -3,27 +3,26 @@
 
 import argparse
 import os
-import re
 import sys
+from multiprocessing import Process, Queue
 
-import yaml
-from benedict import benedict
-
-from ble_gateway import ble_gateway
+from ble_gateway import config_management, defs, helpers, run_ble, run_writers
 
 
-# Parse command line arguments
-def parse_cmd_line_arguments(parser):
-    def check_mac(val):
-        try:
-            if re.match(
-                "[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", val.lower()
-            ):
-                return val.lower()
-        except Exception as e:
-            print("Error: " + str(e))
-        raise argparse.ArgumentTypeError("%s is not a MAC address" % val)
+def define_cmd_line_arguments(parser, defaults_dict):
+    # Add command line arguments to the parser
 
+    # helper func to verify macaddress
+    def verify_mac(val):
+        mac = helpers.check_and_format_mac(val)
+        if mac:
+            return mac
+        else:
+            raise argparse.ArgumentTypeError("%s is not a MAC address" % val)
+
+    #
+    # !! Use lowercase and no whitespaces in parameter names !!
+    #
     parser.add_argument(
         "-c",
         "--configfile",
@@ -37,34 +36,38 @@ def parse_cmd_line_arguments(parser):
         "-w",
         "--writeconfig",
         type=str,
+        default=defaults_dict[defs.C_SEC_COMMON].get("writeconfig"),
         metavar="FILE",
-        default="",
         help="Write configuration to FILE or \
         - to print out configuration and exit.",
     )
     parser.add_argument(
         "-m",
         "--allowmac",
-        type=check_mac,
+        type=verify_mac,
+        default=defaults_dict[defs.C_SEC_COMMON].get("allowmac"),
         action="append",
         help="Filter and process these MAC addresses only. \
-        Can be combined with --scan to look for specific mac(s).",
+        Can be combined with --scan to look for specific mac(s) only. \
+        In Gateway mode forwards messages from specified mac(s) only. \
+        Note that this overrides allowmac list in the configuration file, if any.",
     )
     parser.add_argument(
         "-S",
         "--scan",
         action="store_true",
-        default=False,
-        help="Start in Scan mode. Listen for broadcasts and \
+        default=defaults_dict[defs.C_SEC_COMMON].get("scan"),
+        help="Start in Scan mode. Listen to broadcasts and just \
         collect mac addresses. \
         Disables forwarding of messages to any destination (writers). \
-        Without --decode option tries not to identify message type. \
+        With --decode option tries to identify message type. \
         ",
     )
     parser.add_argument(
         "--decode",
         metavar="DECODER",
         action="append",
+        default=defaults_dict[defs.C_SEC_COMMON].get("decoder"),
         choices=["all", "ruuviraw", "ruuviurl", "eddy", "pebble", "unknown"],
         help="Optional. Decoders to enable in Scan mode. \
         Has no effect if --scan not enabled. \
@@ -77,14 +80,14 @@ def parse_cmd_line_arguments(parser):
         "-r",
         "--showraw",
         action="store_true",
-        default=False,
+        default=defaults_dict[defs.C_SEC_COMMON].get("showraw"),
         help="Show raw data for each received packet regardless of mode running.",
     )
     parser.add_argument(
         "-a",
         "--advertise",
         type=int,
-        default=0,
+        default=defaults_dict[defs.C_SEC_COMMON].get("advertise"),
         help="Broadcast like an EddyStone Beacon. \
         Set the interval between packet in millisec",
     )
@@ -92,95 +95,80 @@ def parse_cmd_line_arguments(parser):
         "-u",
         "--url",
         type=str,
-        default="",
+        default=defaults_dict[defs.C_SEC_COMMON].get("url"),
         help="When broadcasting like an EddyStone Beacon, set the url.",
     )
     parser.add_argument(
         "-t",
         "--txpower",
+        default=defaults_dict[defs.C_SEC_COMMON].get("txpower"),
         type=int,
-        default=0,
         help="When broadcasting like an EddyStone Beacon, set the Tx power",
     )
     parser.add_argument(
         "-D",
         "--device",
         type=int,
-        default=0,
+        default=defaults_dict[defs.C_SEC_COMMON].get("device"),
         help="Select the hciX device to use (default 0, i.e. hci0).",
     )
 
 
-# EOF parse_cmd_line_arguments
+# EOF add_cmd_line_arguments
 
 
-def load_configfile(file, _config):
-    # If file exists, returns the content (MUST BE YAML) as dict
-    # and updates _config
-    if file == "-":
-        return {}
-    if os.path.isfile(file):
-        with open(file) as f:
-            print("Reading configfile:", file)
-            _read = yaml.load(f, Loader=yaml.FullLoader)
-        _config.update(_read)
-        return _read
-    else:
-        print("No configfile found:", file)
-        return {}  # empty dict if file not found
-
-
-def write_configfile(file, _config):
-    print("Writing configfile:", file)
-    _out = {}
-    _out.update(_config)
-    if file == "-":
-        print(yaml.dump(_out))
-    else:
-        with open(file, "w") as f:
-            yaml.dump(_out, f)
-
-
-def main():
-    # set default configuration parameters
-    _config = benedict(keypath_separator=None)
-
-    # parse command line arguments
+def parse_command_line(defaults_dict):
+    # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="BLE Gateway - sends advertised packets to a database"
     )
-    parse_cmd_line_arguments(parser)
+    define_cmd_line_arguments(parser, defaults_dict)
     try:
         _opts = parser.parse_args()
     except Exception as e:
         parser.error("Error: " + str(e))
-        sys.exit()
+        sys.exit(1)
+    return _opts
 
-    load_configfile(_opts.configfile, _config)
 
-    # merge command line arguments into final configuration
-    _config.update(vars(_opts))
+def main():
+
+    # Create configuration object with default configuration parameters
+    config = config_management.Configuration()
+
+    # Parse command line arguments
+    _opts = parse_command_line(config.get_config_dict())
+
+    # Read config file and
+    # merge command line arguments into current configuration
+    config.load_configfile(_opts.configfile)
+
+    # Command line parameters override defaults and configuration file
+    _opts = parse_command_line(config.get_config_dict())
+    config.update_config({defs.C_SEC_COMMON: vars(_opts)}, True)
 
     if _opts.writeconfig:
-        write_configfile(_opts.writeconfig, _config)
+        config.write_configfile(_opts.writeconfig)
         return 0
 
-    print(_config)
+    config.print()
 
-    if _config["scan"]:
-        _config['seen_macs'] = {}
-        print("--------- Running SCAN mode ------------:")
-    else:
-        print("--------- Running GATEWAY mode ------------:")
-
-
-    ble_gateway.run_ble(_config)
-
-    if _config["scan"]:
+    if config.SCANMODE:
+        config.SEEN_MACS = {}
+        print("--------- Running in SCAN mode ------------:")
+        run_ble.run_ble(config)
         print("--------- Collected macs ------------:")
-        for seen in _config['seen_macs'].keys():
-            print(seen, _config['seen_macs'][seen])
+        for seen in config.SEEN_MACS.keys():
+            print(seen, config.SEEN_MACS[seen])
+    else:
+        print("--------- Running in GATEWAY mode ------------:")
+        config.Q = Queue()
+        _p = Process(target=run_writers.run_writers, args=(config,))
+        _p.start()
+        run_ble.run_ble(config)
+        _p.join()
 
 
 if __name__ == "__main__":
-    main()
+    exit_code = main()
+    sys.exit(exit_code)

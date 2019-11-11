@@ -9,32 +9,32 @@ def run_decoders(_d, ev):
         return None
 
     all_decoders = {
-        'pebble': BlueMaestro().decode,
-        'ruuviraw': RuuviTagRaw().decode,
-        'ruuviurl': RuuviTagUrl().decode,
-        'eddy': EddyStone().decode
+        "pebble": BlueMaestro().decode,
+        "ruuviraw": RuuviTagRaw().decode,
+        "ruuviurl": RuuviTagUrl().decode,
+        "eddy": EddyStone().decode,
     }
 
     decoders = []
-    if 'all' in _d:
+    if "all" in _d:
         decoders = list(all_decoders.keys())
     else:
         for decoder in _d:
             if decoder in all_decoders:
                 decoders.append(decoder)
-    if 'unknown' in _d:
-        decoders.append('unknown')
+    if "unknown" in _d:
+        decoders.append("unknown")
 
     # Try to identify the message
     xx = {}
     for decoder in decoders:
-        if decoder == 'unknown':
-            return {'decoder': 'unknown'}
+        if decoder == "unknown":
+            return {"decoder": "unknown"}
         func = all_decoders.get(decoder, None)
         if func:
             xx = func(ev)
         if xx:
-            xx['decoder'] = decoder
-            return(xx)
+            xx["decoder"] = decoder
+            return xx
 
     return None
