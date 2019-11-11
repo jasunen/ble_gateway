@@ -75,7 +75,7 @@ def run_ble(config):
         else:
             # Do the gateway stuff
             # Get instructions what to do with the mac
-            mac_config = config.SOURCE_MACS.get(mac_str, None)
+            mac_config = config.SOURCES.get(mac_str, None)
             if not mac_config:
                 print("Don't know what to do with", mac_str)
                 return

@@ -75,7 +75,7 @@ class Configuration:
                 ].pop(mac)
 
         self.ALLOWED_MACS = self.find_by_key("allowmac", [])
-        self.SOURCE_MACS = self.find_by_key(defs.C_SEC_SOURCES, {})
+        self.SOURCES = self.find_by_key(defs.C_SEC_SOURCES, {})
         self.DESTINATIONS = self.find_by_key(defs.C_SEC_DESTINATIONS, {})
         self.SCANMODE = self.find_by_key("scan", False)
         self.DECODE = self.find_by_key("decode", [])

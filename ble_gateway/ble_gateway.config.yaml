@@ -26,7 +26,7 @@ sources:
     - all
     destinations:
     - default_file
-    intervall: 20
+    interval: 20
 # Bogus sections
 something:
   invalid: whatnot

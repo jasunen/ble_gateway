@@ -33,7 +33,7 @@ DEFAULT_CONFIG = {
         # inherited from DEFAULTS
         "DEFAULTS": {
             "destinations": ["default_file"],
-            "intervall": 10,
+            "interval": 10,
             # fields in fields_order will be first, other fields remain as is
             "fields_order": ["timestamp", "mac"],
         },
