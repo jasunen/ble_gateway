@@ -26,6 +26,14 @@ class Configuration:
     def get_config_dict(self):
         return self.__config
 
+    def update_attributes(self):
+        self.ALLOWED_MACS = self.find_by_key("allowmac", [])
+        self.SOURCES = self.find_by_key(defs.C_SEC_SOURCES, {})
+        self.DESTINATIONS = self.find_by_key(defs.C_SEC_DESTINATIONS, {})
+        self.MODE = self.find_by_key("mode", defs.GWMODE)
+        self.DECODE = self.find_by_key("decode", [])
+        self.SHOWRAW = self.find_by_key("showraw", False)
+
     def update_config(self, new_config_d, merge):
         if not new_config_d or not isinstance(new_config_d, dict):
             return
@@ -73,13 +81,7 @@ class Configuration:
                 self.__config[defs.C_SEC_SOURCES][new_mac] = self.__config[
                     defs.C_SEC_SOURCES
                 ].pop(mac)
-
-        self.ALLOWED_MACS = self.find_by_key("allowmac", [])
-        self.SOURCES = self.find_by_key(defs.C_SEC_SOURCES, {})
-        self.DESTINATIONS = self.find_by_key(defs.C_SEC_DESTINATIONS, {})
-        self.SCANMODE = self.find_by_key("scan", False)
-        self.DECODE = self.find_by_key("decode", [])
-        self.SHOWRAW = self.find_by_key("showraw", False)
+        self.update_attributes()
 
     def find_by_key(self, key, default):
         for section in self.__config_sections:

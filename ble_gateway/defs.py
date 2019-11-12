@@ -1,3 +1,6 @@
+SCANMODE = 'SCAN'
+GWMODE = 'GATEWAY'
+
 C_SEC_COMMON = "common"
 C_SEC_SOURCES = "sources"
 C_SEC_DESTINATIONS = "destinations"
@@ -43,9 +46,9 @@ DEFAULT_CONFIG = {
             # fields in fields_order will be first, other fields remain as is
             "fields_add": ["location=Ulkona"],  # list vs dict vs list of tuples??
         },
-        # source settings for "_UNKNOWN_" will be applied to packets
-        # which are not matched to any mac in "sources"
-        "UNKNOWN": {
+        # Optional source settings for "*" will be applied to packets
+        # which are not matched to any defined mac address
+        "*": {
             "decoders": ["all", "unknown"],
             # There is built-in destination called DROP which just discards
             # the packet and can be used in any source definition

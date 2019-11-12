@@ -53,14 +53,27 @@ def define_cmd_line_arguments(parser, defaults_dict):
         Note that this overrides allowmac list in the configuration file, if any.",
     )
     parser.add_argument(
+        "-G",
+        "--gateway",
+        action="store_const",
+        const=defs.GWMODE,
+        dest='mode',
+        help="Start in Gateway mode. Forwards messages to destinations \
+        (writers) specified in the configuration file. \
+        ",
+    )
+    parser.add_argument(
         "-S",
         "--scan",
-        action="store_true",
-        default=defaults_dict[defs.C_SEC_COMMON].get("scan"),
+        action="store_const",
+        const=defs.SCANMODE,
+        dest='mode',
         help="Start in Scan mode. Listen to broadcasts and just \
         collect mac addresses. \
-        Disables forwarding of messages to any destination (writers). \
-        With --decode option tries to identify message type. \
+        Disables forwarding of messages to any destinations specified \
+        in the configuration file \
+        (other than built-in 'SCAN' destination). \
+        With --decode option tries to identify and decode messages. \
         ",
     )
     parser.add_argument(
@@ -153,20 +166,14 @@ def main():
 
     config.print()
 
-    if config.SCANMODE:
-        config.SEEN_MACS = {}
-        print("--------- Running in SCAN mode ------------:")
-        run_ble.run_ble(config)
-        print("--------- Collected macs ------------:")
-        for seen in config.SEEN_MACS.keys():
-            print(seen, config.SEEN_MACS[seen])
-    else:
-        print("--------- Running in GATEWAY mode ------------:")
-        config.Q = Queue()
-        _p = Process(target=run_writers.run_writers, args=(config,))
-        _p.start()
-        run_ble.run_ble(config)
-        _p.join()
+    print("--------- Running in {} mode ------------".format(config.MODE))
+    config.Q = Queue()
+    _p = Process(target=run_writers.run_writers, args=(config,))
+    _p.start()
+    exit_code = run_ble.run_ble(config)
+    _p.join()
+
+    return exit_code
 
 
 if __name__ == "__main__":

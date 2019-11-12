@@ -33,20 +33,33 @@ class IntervalChecker:
 
 class Writer:
     # Parent class for all the writer classes
-    type = ""
+    type = "WriterBaseClass"
 
-    def __init__(self, wname, wconfig):
-        # each subclass init() should call super().__init__()
-        self.name = wname
-        # self.type = wconfig["type"]
+    def __init__(self, wname=None, wconfig={}):
+        if wname:
+            self.name = wname
+        else:
+            self.name = self.type
         self.interval = wconfig.get("interval", 0)
         self.packetcount = 0
         self.waitlist = IntervalChecker(self.interval)
+        self.configure(wconfig)
 
-    def process_msg(self, mesg):
-        # Each writer subclass should implement destination specific process
-        # and call super().process_msg()
+    def configure(self, wconfig):
+        # Each subclass must define class specific configure()
+        # which is then called by __init__ of the Writer base class
+        pass
+
+    def close(self):
+        pass
+
+    def send(self, mesg):
         self.packetcount += 1
+        self._send(mesg)
+
+    def _send(self, mesg):
+        # Each writer subclass should implement destination specific process
+        pass
 
     def rename_fields(self, mesg, fields):
         # NOTE! this will not preserve order of the fields
@@ -81,8 +94,7 @@ class InfluxDBWriter(Writer):
     # Writer class for InfluxDB destination
     type = "influxdb"
 
-    def __init__(self, wname, wconfig):
-        super().__init__(wname, wconfig)
+    def configure(self, wconfig):
         self.host = wconfig.get("host", "localhost")
         self.port = wconfig.get("port", 8086)
         self.dbuser = wconfig.get("dbuser", "root")
@@ -96,30 +108,51 @@ class InfluxDBWriter(Writer):
             password=self.dbpassword,
         )
 
+    def _send(self, mesg):
+        pass
+
 
 class FileWriter(Writer):
     # Writer class for file destination
     type = "file"
 
-    def __init__(self, wname, wconfig):
-        super().__init__(wname, wconfig)
+    def configure(self, wconfig):
         self.filename = wconfig.get("filename", "default_file.out")
+
+    def _send(self, mesg):
+        pass
 
 
 class ThingspeakWriter(Writer):
     # Writer class for Thingspeak destination
     type = "thingspeak"
 
-    def __init__(self, wname, wconfig):
-        super().__init__(wname, wconfig)
+    def configure(self, wconfig):
+        pass
+
+    def _send(self, mesg):
+        pass
 
 
 class DropWriter(Writer):
     # Will simply drop the packet
     type = "DROP"
 
-    def __init__(self, wname, wconfig):
-        super().__init__(wname, wconfig)
+
+class ScanWriter(Writer):
+    type = "SCAN"
+
+    def configure(self, wconfig={}):
+        self.seen_macs = {}
+
+    def _send(self, mesg):
+        self.seen_macs[mesg["mac"]] = mesg["decoder"]
+        print(mesg)
+
+    def close(self):
+        print("--------- Collected macs ------------:")
+        for mac, decoder in self.seen_macs.items():
+            print(mac, decoder)
 
 
 class Writers:
@@ -127,15 +160,22 @@ class Writers:
 
     def __init__(self):
         self.all_writers = {}
-        self.writer_classes = {
-            "file": FileWriter,
-            "influxdb": InfluxDBWriter,
-            "thingspeak": ThingspeakWriter,
-            "DROP": DropWriter,
-        }
+        self.writer_classes = {}
+        for cls in Writer.__subclasses__():
+            self.writer_classes[cls.type] = cls
+
+        # add built-in Writers
+        self.add_writers({
+            'DROP': {'type': 'DROP'},
+            'SCAN': {'type': 'SCAN'},
+        })
 
     def send(self, mesg):
         pass
+
+    def close(self):
+        for w in self.all_writers.items():
+            w.close()
 
     def add_writer(self, wname, wconfig):
         wtype = wconfig.get("type", None)
@@ -150,7 +190,7 @@ class Writers:
     def add_writers(self, wconfigs):
         for wname in wconfigs:
             if wname != "defaults":
-                self.addWriter(wname, wconfigs[wname])
+                self.add_writer(wname, wconfigs[wname])
         return self.all_writers
 
     def get_writer(self, wname):
