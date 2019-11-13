@@ -63,7 +63,7 @@ DEFAULT_CONFIG = {
         # to all defined destinations. Additional settings
         # defined for a particular destination will override settings
         # inherited from DEFAULTS
-        "DEFAULTS": {"fields_rename": {"peer": "mac"}, "fields_remove": ["tx_power"]},
+        "DEFAULTS": {"fields_rename": ["peer=mac"], "fields_remove": ["tx_power"]},
         "default_file": {"type": "file", "filename": "default_file.out"},
     },
 }

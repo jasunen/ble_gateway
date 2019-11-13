@@ -125,6 +125,12 @@ def define_cmd_line_arguments(parser, defaults_dict):
         default=defaults_dict[defs.C_SEC_COMMON].get("device"),
         help="Select the hciX device to use (default 0, i.e. hci0).",
     )
+    parser.add_argument(
+        "--simulator",
+        action="store_true",
+        default=defaults_dict[defs.C_SEC_COMMON].get("simulator"),
+        help="Use simulated messages instead of real bluetooth hardware.",
+    )
 
 
 # EOF add_cmd_line_arguments

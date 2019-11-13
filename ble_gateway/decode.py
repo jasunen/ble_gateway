@@ -5,13 +5,14 @@ from ble_gateway.ruuvitagurl import RuuviTagUrl
 
 
 class Decoder:
+    all_decoders = {
+        "pebble": BlueMaestro().decode,
+        "ruuviraw": RuuviTagRaw().decode,
+        "ruuviurl": RuuviTagUrl().decode,
+        "eddy": EddyStone().decode,
+    }
+
     def __init__(self):
-        self.all_decoders = {
-            "pebble": BlueMaestro().decode,
-            "ruuviraw": RuuviTagRaw().decode,
-            "ruuviurl": RuuviTagUrl().decode,
-            "eddy": EddyStone().decode,
-        }
         self.use_fixed_decoders = False
         self.fixed_decoders = []
         self.mac_decoders = {}

@@ -28,8 +28,8 @@ class Configuration:
 
     def update_attributes(self):
         self.ALLOWED_MACS = self.find_by_key("allowmac", [])
-        self.SOURCES = self.find_by_key(defs.C_SEC_SOURCES, {})
-        self.DESTINATIONS = self.find_by_key(defs.C_SEC_DESTINATIONS, {})
+        self.SOURCES = self.__config.get(defs.C_SEC_SOURCES, {})
+        self.DESTINATIONS = self.__config.get(defs.C_SEC_DESTINATIONS, {})
         self.MODE = self.find_by_key("mode", defs.GWMODE)
         self.DECODE = self.find_by_key("decode", [])
         self.SHOWRAW = self.find_by_key("showraw", False)
@@ -83,7 +83,7 @@ class Configuration:
                 ].pop(mac)
         self.update_attributes()
 
-    def find_by_key(self, key, default):
+    def find_by_key(self, key, default=None):
         for section in self.__config_sections:
             found = self.__config[section].get(key, None)
             if found is not None:

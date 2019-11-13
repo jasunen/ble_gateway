@@ -15,14 +15,14 @@ destinations:
     fields_remove:
     - tx_power
     fields_rename:
-      peer: mac
+    - peer=mac
     filename: default_file.log
     type: file
   defaults:
     fields_remove:
     - tx_power
     fields_rename:
-      peer: mac
+    - peer=mac
 sources:
   da:b6:f7:69:c3:45:
     decoders:

@@ -25,6 +25,7 @@ class IntervalChecker:
             return True
 
         if now - self.last_sent[mac] < interval:  # Must wait still to reach interval
+            print("{} has interval {}, must wait.".format(mac, interval))
             return False  # Packet will be discarded
 
         self.last_sent[mac] = now  # mark last sent time
@@ -64,8 +65,9 @@ class Writer:
     def rename_fields(self, mesg, fields):
         # NOTE! this will not preserve order of the fields
         for f in fields:
-            if f in mesg:
-                mesg[f] = mesg.pop(f)
+            (t, v) = f.split("=")
+            if t and v and t in mesg:
+                mesg[v] = mesg.pop(t)
         return mesg
 
     def remove_fields(self, mesg, fields):
@@ -117,10 +119,21 @@ class FileWriter(Writer):
     type = "file"
 
     def configure(self, wconfig):
-        self.filename = wconfig.get("filename", "default_file.out")
+        self.filename = wconfig.get("filename", "")
+        self.f_handle = None
+        if not self.filename:
+            print("No filename specified!")
+            return
+
+        self.f_handle = open(self.filename, "a+")
 
     def _send(self, mesg):
-        pass
+        if self.f_handle is not None:
+            self.f_handle.write("{}\r\n".format(mesg))
+
+    def close(self):
+        if self.f_handle is not None:
+            self.f_handle.close()
 
 
 class ThingspeakWriter(Writer):
@@ -158,8 +171,9 @@ class ScanWriter(Writer):
 class Writers:
     # collection of writer classes
 
-    def __init__(self):
+    def __init__(self, sources_config=None):
         self.all_writers = {}
+        self.destinations = {}
         self.writer_classes = {}
         for cls in Writer.__subclasses__():
             self.writer_classes[cls.type] = cls
@@ -170,8 +184,26 @@ class Writers:
             'SCAN': {'type': 'SCAN'},
         })
 
+        if sources_config is not None:
+            self.setup_routing(sources_config)
+
+    def setup_routing(self, sources_config):
+        for mac in sources_config:
+            self.destinations[mac] = sources_config[mac].get('destinations', 'DROP')
+        print(sources_config)
+        print(self.destinations)
+
     def send(self, mesg):
-        pass
+        if not self.destinations:
+            print("{} - Routing not setup!".format(self))
+            return
+
+        print("Writers.send(): mesg:", mesg)
+        dest_list = self.destinations.get(mesg['mac'], self.destinations.get('*'))
+        for dest in dest_list:
+            if dest in self.all_writers:
+                print("Sending {} to {}.".format(mesg['mac'], self.all_writers[dest]))
+                self.all_writers[dest].send(mesg)
 
     def close(self):
         for w in self.all_writers.items():
