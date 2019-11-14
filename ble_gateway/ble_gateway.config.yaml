@@ -1,6 +1,6 @@
 #
 common:
-  device: 1
+  device: 0
   scan: false
   showraw: false
   advertise: null
@@ -17,7 +17,6 @@ destinations:
   test_influxdb:
     host: localhost
     port: 8086
-    dbuser:
 #
 sources:
   E2:E2:4F:4D:6C:77:

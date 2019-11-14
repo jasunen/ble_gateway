@@ -45,6 +45,8 @@ def run_ble(config):
     else:
         decoder.enable_per_mac_decoders(config.SOURCES)
 
+    event_loop = asyncio.get_event_loop()
+
     # Callback process to handle data received from BLE
     # ---------------------------------------------------
     def callback_data_handler(data):
@@ -72,6 +74,9 @@ def run_ble(config):
         if config.SHOWRAW:
             print("{} - Raw data: {}".format(mesg["mac"], ev.raw_data))
 
+        if config.quit_event.is_set():
+            event_loop.stop()
+
         # TIMING
         config.TIMER_SEC += timer() - start_t
         config.TIMER_COUNT += 1
@@ -91,8 +96,6 @@ def run_ble(config):
         if hci_dev is None:
             print("No device specified, exiting run_ble")
             return 1
-
-        event_loop = asyncio.get_event_loop()
 
         # First create and configure a raw socket
         mysocket = aiobs.create_bt_socket(hci_dev)
@@ -130,23 +133,25 @@ def run_ble(config):
 
         # Start BLE probe
         btctrl.send_scan_request()
-        while not config.quit_event.is_set():
-            event_loop.run_until_complete()
-        print("\n\n\nKeyboard interrupt!")
-        print("Closing ble event loop.")
-        btctrl.stop_scan_request()
-        command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
-        btctrl.send_command(command)
-        conn.close()
-        event_loop.close()
+        try:
+            event_loop.run_forever()
+        except KeyboardInterrupt:
+            print("\n\n\nKeyboard interrupt!")
+        finally:
+            print("Closing ble event loop.")
+            btctrl.stop_scan_request()
+            command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
+            btctrl.send_command(command)
+            conn.close()
+            event_loop.close()
 
-        # TIMING
-        print(config.TIMER_COUNT, "calls.")
-        print(
-            1000 * 1000 * config.TIMER_SEC / config.TIMER_COUNT,
-            "usec in average per call.",
-        )
-        # ------------------------------
+            # TIMING
+            print(config.TIMER_COUNT, "calls.")
+            print(
+                1000 * 1000 * config.TIMER_SEC / config.TIMER_COUNT,
+                "usec in average per call.",
+            )
+            # ------------------------------
 
     print("Exiting run_ble.")
     return 0
