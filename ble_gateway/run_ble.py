@@ -1,5 +1,4 @@
 import asyncio
-import time
 from timeit import default_timer as timer
 
 import aioblescan as aiobs
@@ -131,28 +130,24 @@ def run_ble(config):
 
         # Start BLE probe
         btctrl.send_scan_request()
-        try:
-            event_loop.run_forever()
-        except KeyboardInterrupt:
-            print("\n\n\nKeyboard interrupt!")
-        finally:
-            print("Closing ble event loop.")
-            btctrl.stop_scan_request()
-            command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
-            btctrl.send_command(command)
-            conn.close()
-            event_loop.close()
+        while not config.quit_event.is_set():
+            event_loop.run_until_complete()
+        print("\n\n\nKeyboard interrupt!")
+        print("Closing ble event loop.")
+        btctrl.stop_scan_request()
+        command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
+        btctrl.send_command(command)
+        conn.close()
+        event_loop.close()
 
-            # TIMING
-            print(config.TIMER_COUNT, "calls.")
-            print(
-                1000 * 1000 * config.TIMER_SEC / config.TIMER_COUNT,
-                "usec in average per call.",
-            )
-            # ------------------------------
+        # TIMING
+        print(config.TIMER_COUNT, "calls.")
+        print(
+            1000 * 1000 * config.TIMER_SEC / config.TIMER_COUNT,
+            "usec in average per call.",
+        )
+        # ------------------------------
 
-    config.Q.put(config.STOPMESSAGE)
-    time.sleep(5)
     print("Exiting run_ble.")
     return 0
     # EOF run_ble

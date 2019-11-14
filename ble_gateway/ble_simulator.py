@@ -25,16 +25,12 @@ def run_simulator(config):
     simulated_decoders = list(decode.Decoder.all_decoders)
 
     print("Entering ble_simulator loop.")
-    try:
-        while True:
-            # Do simulator stuff
-            mesg = {}
-            mesg["mac"] = random.choice(simulated_macs)
-            mesg["decoder"] = random.choice(simulated_decoders)
-            config.Q.put(mesg)
-            time.sleep(1)
+    while not config.quit_event.is_set():
+        # Do simulator stuff
+        mesg = {}
+        mesg["mac"] = random.choice(simulated_macs)
+        mesg["decoder"] = random.choice(simulated_decoders)
+        config.Q.put(mesg)
+        time.sleep(1)
 
-    except KeyboardInterrupt:
-        print("\n\n\nKeyboard interrupt!")
-    finally:
-        print("Closing simulator.")
+    print("Closing simulator.")

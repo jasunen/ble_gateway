@@ -2,7 +2,7 @@ import queue
 import time
 from pprint import pprint
 
-from ble_gateway import defs, writers
+from ble_gateway import writers
 
 
 def modify_packet(mesg, mconfig):

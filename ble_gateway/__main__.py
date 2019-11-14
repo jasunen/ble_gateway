@@ -4,7 +4,8 @@
 import argparse
 import os
 import sys
-from multiprocessing import Process, Queue
+import time
+from multiprocessing import Event, Process, Queue
 
 from ble_gateway import config_management, defs, helpers, run_ble, run_writers
 
@@ -172,15 +173,25 @@ def main():
 
     config.print()
 
-    print("--------- Running in {} mode ------------".format(config.MODE))
     config.Q = Queue()
+    config.quit_event = Event()
     writers_process = Process(target=run_writers.run_writers, args=(config,))
+    ble_process = Process(target=run_ble.run_ble, args=(config,))
+
+    print("--------- Running in {} mode ------------".format(config.MODE))
     writers_process.start()
-    exit_code = run_ble.run_ble(config)
+    ble_process.start()
+
+    # May be a busy loop here -- implementing event/signal handler ????
+    time.sleep(20)
+    config.quit_event.set()
+    config.Q.put(config.STOPMESSAGE)
+
+    ble_process.join()
     writers_process.join()
 
     print("Exiting main.")
-    return exit_code
+    return 0
 
 
 if __name__ == "__main__":

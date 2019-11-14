@@ -24,7 +24,7 @@ DEFAULT_CONFIG = {
         "txpower": int(0),
         "device": int(0),
         "writeconfig": None,
-        "no_messages_timeout": int(600),
+        "no_messages_timeout": int(10),
     },
     #
     # SOURCES section:
