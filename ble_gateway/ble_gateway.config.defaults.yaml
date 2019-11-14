@@ -1,67 +1,91 @@
+# Keys are case insensitive
+# Actually when reading the configuration
+# all the keys are converted to lowercase
+# BUT values are case SENSITIVE, so be carefull
+# Configuration has following sections:
+# 'common', 'sources', 'destinations'
+#
+# COMMON section:
+#
 common:
-  advertise: null
-  allowmac: null
-  configfile: /home/jani/Projects/ble_gateway/ble_gateway/ble_gateway.config.yaml
-  decode: null
-  device: 1
-  no_messages_timeout: 600
-  scan: true
+  scan: false
+  allowmac:
   showraw: false
-  txpower: null
-  url: null
-  writeconfig: ./ble_gateway/ble_gateway.config.defaults.yaml
+  advertise: 0
+  url: http://0.0.0.0/
+  txpower: 0
+  device: 0
+  # writeconfig: ble_gateway/ble_gateway.config.defaults.yaml
+  no_messages_timeout: 10
+  decode:
+  # mode: SCAN
+  mode: GATEWAY
+  simulator: false
+#
+# SOURCES section:
+#
+# Settings defined in source DEFAULTS are applied first
+# to all other defined sources. Additional settings
+# defined for a particular source will override settings
+# inherited from DEFAULTS
+sources:
+  # Optional source settings for "*" will be applied to packets
+  # which are not matched to any defined mac address
+  '*':
+    # There is built-in destination called DROP which just discards
+    # the packet and can be used in any source definition
+    destinations:
+    - DROP
+    interval: 0
+    fields_order:
+    decoders:
+    - all
+    - unknown
+  defaults:
+    destinations:
+    - default_file
+    interval: 5
+    # fields in fields_order will be first, other fields remain as is
+    fields_order:
+    - timestamp
+    - mac
+    decoders:
+    - all
+  # Mac addresses (as they are keys) will be converted to lowercase
+  da:b6:f7:69:c3:45:
+    decoders:
+    - ruuviraw
+    fields_add:
+    - location=Ulkona
+  e6:16:76:cf:e6:e3:
+    decoders:
+    - ruuviraw
+    fields_add:
+    - location=Olohuone
+  e2:e2:4f:4d:6c:77:
+    decoders:
+    - ruuviraw
+    fields_add:
+    - location=Makuuhuone
+#
+# DESTINATIONS section:
+#
+# Settings defined in destination DEFAULTS are applied first
+# to all defined destinations. Additional settings
+# defined for a particular destination will override settings
+# inherited from DEFAULTS
 destinations:
   default_file:
     fields_remove:
     - tx_power
-    fields_rename:
-    - peer=mac
-    filename: default_file.log
+    interval: 20
     type: file
+    filename: default_file.LOG
+    batch: 10
+  test_influxdb:
+    host: localhost
+    port: 8086
   defaults:
-    fields_remove:
-    - tx_power
     fields_rename:
     - peer=mac
-sources:
-  da:b6:f7:69:c3:45:
-    decoders:
-    - ruuviraw
-    destinations:
-    - default_file
-    fields_add:
-    - location=Ulkona
-    fields_order:
-    - timestamp
-    - mac
-    interval: 10
-  defaults:
-    decoders:
-    - all
-    destinations:
-    - default_file
-    fields_order:
-    - timestamp
-    - mac
-    interval: 20
-  e2_e2_4_f_4_d_6_c_77:
-    decoders:
-    - ruuviraw
-    destinations:
-    - default_file
-    fields_add:
-    - location=Makuuhuone
-    fields_order:
-    - timestamp
-    - mac
-    interval: 20
-  unknown:
-    decoders:
-    - all
-    - unknown
-    destinations:
-    - DROP
-    fields_order:
-    - timestamp
-    - mac
-    interval: 10
+    interval: 6
