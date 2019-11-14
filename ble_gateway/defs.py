@@ -36,7 +36,7 @@ DEFAULT_CONFIG = {
         # inherited from DEFAULTS
         "DEFAULTS": {
             "destinations": ["default_file"],
-            "interval": 10,
+            "interval": 3,
             # fields in fields_order will be first, other fields remain as is
             "fields_order": ["timestamp", "mac"],
         },
@@ -66,8 +66,8 @@ DEFAULT_CONFIG = {
         "DEFAULTS": {
             "fields_rename": ["peer=mac"],
             "fields_remove": ["tx_power"],
-            "interval": 20,
+            "interval": 6,
         },
-        "default_file": {"type": "file", "filename": "default_file.out", "batch": 15},
+        "default_file": {"type": "file", "filename": "default_file.out", "batch": 2},
     },
 }

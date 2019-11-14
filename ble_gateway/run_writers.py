@@ -47,7 +47,7 @@ def run_writers(config):
             if mesg == config.STOPMESSAGE:
                 break
 
-            print("Got message from", mesg["mac"])
+            # print("Got message from", mesg["mac"])
             wait_start = time.time()  # Reset wait timer
 
             # When packet is received, check if associated mac has configuration

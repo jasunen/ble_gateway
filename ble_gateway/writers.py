@@ -61,7 +61,7 @@ class IntervalChecker:
             return True
 
         if now - self.last_sent[mac] < interval:  # Must wait still to reach interval
-            print("{} has interval {}, must wait.".format(mac, interval))
+            # print("{} has interval {}, must wait.".format(mac, interval))
             return False  # Packet will be discarded
 
         self.last_sent[mac] = now  # mark last sent time
