@@ -8,20 +8,23 @@ from ble_gateway import helpers
 
 class MessageBuffer:
     def __init__(self, batch_size):
-        self.buffer = SimpleQueue()
+        self._buffer = SimpleQueue()
         self.max_batch = batch_size
 
     def put(self, mesg):
-        self.buffer.put(mesg)
-        return self.max_batch - self.buffer.qsize()
+        self._buffer.put(mesg)
+        return self.max_batch - self._buffer.qsize()
 
     def get(self):
-        if not self.buffer.empty():
-            return self.buffer.get()
+        if not self._buffer.empty():
+            return self._buffer.get()
         return None
 
     def is_batch_ready(self):
-        return self.max_batch <= self.buffer.qsize()
+        return self.max_batch <= self._buffer.qsize()
+
+    def empty(self):
+        return self._buffer.empty()
 
 
 class IntervalChecker:
@@ -240,11 +243,14 @@ class Writers:
             print("{} - Routing not setup!".format(self))
             return
 
-        print("Writers.send(): mesg:", mesg)
+        # print("Writers.send(): mesg:", mesg)
         dest_list = self.destinations.get(mesg["mac"], self.destinations.get("*"))
         for dest in dest_list:
             if dest in self.all_writers:
-                print("Sending {} to {}.".format(mesg["mac"], self.all_writers[dest]))
+                if dest != "DROP":
+                    print(
+                        "Sending {} to {}.".format(mesg["mac"], self.all_writers[dest])
+                    )
                 self.all_writers[dest].send(mesg.copy())
 
     def close(self):
