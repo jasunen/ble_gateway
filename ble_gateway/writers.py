@@ -169,10 +169,13 @@ class FileWriter(Writer):
             return
 
         self.f_handle = open(self.filename, "a+")
+        print(self.filename, self.f_handle.writable())
 
     def _process_buffer(self):
         if self.f_handle is not None:
+            print("Handle ok.")
             if self.buffer.is_batch_ready():
+                print("Batch ready.")
                 while not self.buffer.empty():
                     mesg = self.buffer.get()
                     mesg["timestamp"] = time.ctime(mesg["timestamp"])
@@ -180,6 +183,7 @@ class FileWriter(Writer):
 
     def _close(self):
         if self.f_handle is not None:
+            self.f_handle.flush()
             self.f_handle.close()
 
 
