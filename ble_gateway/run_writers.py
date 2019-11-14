@@ -63,10 +63,10 @@ def run_writers(config):
             if waitlist.is_wait_over(mac, now=wait_start):
                 # modify the packet as defined in configuration
                 mesg["timestamp"] = wait_start  # timestamp the message
-                print("{} - let's write {}".format(time.ctime(wait_start), mesg))
                 mesg = modify_packet(mesg, mconfig)
 
                 # *** send modified packet to destinations object
+                # print("{} - let's write {}".format(time.ctime(wait_start), mesg))
                 destinations.send(mesg)
 
                 # Finally delete message as not needed

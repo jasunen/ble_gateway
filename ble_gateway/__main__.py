@@ -4,7 +4,6 @@
 import argparse
 import os
 import sys
-import time
 from multiprocessing import Event, Process, Queue
 
 from ble_gateway import config_management, defs, helpers, run_ble, run_writers
@@ -183,7 +182,11 @@ def main():
     ble_process.start()
 
     # May be a busy loop here -- implementing event/signal handler ????
-    time.sleep(20)
+    while True:
+        user_cmd = input("Command: ")
+        if user_cmd == "q":
+            break
+
     config.quit_event.set()
     config.Q.put(config.STOPMESSAGE)
 

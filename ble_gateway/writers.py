@@ -87,7 +87,9 @@ class Writer:
         pass
 
     def close(self):
-        pass
+        self.buffer.max_batch = 0
+        self._process_buffer()  # Process remaining messages
+        self._close()
 
     def send(self, mesg):
         self.packetcount += 1
@@ -173,7 +175,7 @@ class FileWriter(Writer):
                     mesg["timestamp"] = time.ctime(mesg["timestamp"])
                     self.f_handle.write("{}\r\n".format(mesg))
 
-    def close(self):
+    def _close(self):
         if self.f_handle is not None:
             self.f_handle.close()
 
@@ -208,7 +210,7 @@ class ScanWriter(Writer):
                 self.seen_macs[mesg["mac"]] = mesg["decoder"]
                 print(mesg)
 
-    def close(self):
+    def _close(self):
         print("--------- Collected macs ------------:")
         for mac, decoder in self.seen_macs.items():
             print(mac, decoder)

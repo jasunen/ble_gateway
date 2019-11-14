@@ -7,15 +7,6 @@ from aioblescan.plugins import EddyStone
 from ble_gateway import decode, defs, helpers
 
 
-def x_is_mac_in_list(mac_str, macs):
-    if macs:
-        if mac_str in macs:
-            return True
-        return False
-    else:
-        return False
-
-
 def packet_info(ev):
     # Get basic packet info
     mesg = {}
@@ -56,6 +47,9 @@ def run_ble(config):
         start_t = timer()
         # ------------------------------
 
+        if config.quit_event.is_set():
+            event_loop.stop()
+
         ev = aiobs.HCI_Event()
         ev.decode(data)
 
@@ -63,7 +57,7 @@ def run_ble(config):
         if "mac" not in mesg:  # invalid packet if no mac (peer) address
             return
 
-        if not config.allowed_mac(mesg["mac"]):
+        if config.ALLOWED_MACS and mesg["mac"] not in config.ALLOWED_MACS:
             return
 
         mesg.update(decoder.run(mesg["mac"], ev))
@@ -73,9 +67,6 @@ def run_ble(config):
 
         if config.SHOWRAW:
             print("{} - Raw data: {}".format(mesg["mac"], ev.raw_data))
-
-        if config.quit_event.is_set():
-            event_loop.stop()
 
         # TIMING
         config.TIMER_SEC += timer() - start_t
