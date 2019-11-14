@@ -19,6 +19,11 @@ destinations:
     port: 8086
 #
 sources:
+  E6:16:76:CF:E6:E3:
+    decoders:
+    - ruuviraw
+    fields_add:
+    - location=Olohuone
   E2:E2:4F:4D:6C:77:
     decoders:
     - ruuviraw
@@ -29,7 +34,7 @@ sources:
     - all
     destinations:
     - default_file
-    interval: 20
+    interval: 5
 # Bogus sections
 something:
   invalid: whatnot

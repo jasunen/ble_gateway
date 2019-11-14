@@ -92,6 +92,7 @@ class Writer:
     def close(self):
         self.buffer.max_batch = 0
         self._process_buffer()  # Process remaining messages
+        print("Closing", self.name)
         self._close()
 
     def send(self, mesg):
@@ -177,6 +178,7 @@ class FileWriter(Writer):
             if self.buffer.is_batch_ready():
                 print("Batch ready.")
                 while not self.buffer.empty():
+                    print("Writing to file")
                     mesg = self.buffer.get()
                     mesg["timestamp"] = time.ctime(mesg["timestamp"])
                     self.f_handle.write("{}\r\n".format(mesg))
@@ -239,8 +241,6 @@ class Writers:
     def setup_routing(self, sources_config):
         for mac in sources_config:
             self.destinations[mac] = sources_config[mac].get("destinations", "DROP")
-        print(sources_config)
-        print(self.destinations)
 
     def send(self, mesg):
         if not self.destinations:
