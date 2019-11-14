@@ -14,6 +14,10 @@ destinations:
   default_file:
     filename: default_file.LOG
     type: file
+  test_influxdb:
+    host: localhost
+    port: 8086
+    dbuser:
 #
 sources:
   E2:E2:4F:4D:6C:77:

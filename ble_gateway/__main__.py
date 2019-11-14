@@ -57,7 +57,7 @@ def define_cmd_line_arguments(parser, defaults_dict):
         "--gateway",
         action="store_const",
         const=defs.GWMODE,
-        dest='mode',
+        dest="mode",
         help="Start in Gateway mode. Forwards messages to destinations \
         (writers) specified in the configuration file. \
         ",
@@ -67,7 +67,7 @@ def define_cmd_line_arguments(parser, defaults_dict):
         "--scan",
         action="store_const",
         const=defs.SCANMODE,
-        dest='mode',
+        dest="mode",
         help="Start in Scan mode. Listen to broadcasts and just \
         collect mac addresses. \
         Disables forwarding of messages to any destinations specified \
@@ -174,11 +174,12 @@ def main():
 
     print("--------- Running in {} mode ------------".format(config.MODE))
     config.Q = Queue()
-    _p = Process(target=run_writers.run_writers, args=(config,))
-    _p.start()
+    writers_process = Process(target=run_writers.run_writers, args=(config,))
+    writers_process.start()
     exit_code = run_ble.run_ble(config)
-    _p.join()
+    writers_process.join()
 
+    print("Exiting main.")
     return exit_code
 
 

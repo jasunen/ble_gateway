@@ -29,8 +29,8 @@ def run_simulator(config):
         while True:
             # Do simulator stuff
             mesg = {}
-            mesg['mac'] = random.choice(simulated_macs)
-            mesg['decoder'] = random.choice(simulated_decoders)
+            mesg["mac"] = random.choice(simulated_macs)
+            mesg["decoder"] = random.choice(simulated_decoders)
             config.Q.put(mesg)
             time.sleep(1)
 

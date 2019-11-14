@@ -1,5 +1,5 @@
-SCANMODE = 'SCAN'
-GWMODE = 'GATEWAY'
+SCANMODE = "SCAN"
+GWMODE = "GATEWAY"
 
 C_SEC_COMMON = "common"
 C_SEC_SOURCES = "sources"
@@ -68,10 +68,6 @@ DEFAULT_CONFIG = {
             "fields_remove": ["tx_power"],
             "interval": 20,
         },
-        "default_file": {
-            "type": "file",
-            "filename": "default_file.out",
-            "batch": 15,
-        }
+        "default_file": {"type": "file", "filename": "default_file.out", "batch": 15},
     },
 }

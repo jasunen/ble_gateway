@@ -11,6 +11,8 @@ from ble_gateway import defs, helpers
 
 
 class Configuration:
+    STOPMESSAGE = "STOP"
+
     def __init__(self):
         # Configuration has following sections:
         # 'common', 'sources', 'destinations'

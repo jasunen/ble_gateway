@@ -3,41 +3,55 @@ from queue import SimpleQueue
 
 from influxdb import InfluxDBClient
 
+from ble_gateway import helpers
+
 
 class MessageBuffer:
-    def __init__(self, size):
+    def __init__(self, batch_size):
         self.buffer = SimpleQueue()
-        self.batch_size = size
+        self.max_batch = batch_size
 
     def put(self, mesg):
         self.buffer.put(mesg)
-        return(self.batch_size - self.buffer.size())
+        return self.max_batch - self.buffer.qsize()
 
     def get(self):
         if not self.buffer.empty():
             return self.buffer.get()
         return None
 
-    def batch_ready(self):
-        return(self.batch_size <= self.buffer.size())
+    def is_batch_ready(self):
+        return self.max_batch <= self.buffer.qsize()
 
 
 class IntervalChecker:
-    def __init__(self, default_interval=0):
-        # Optional default_interval sets default time between packets
-        self.default_interval = default_interval
+    def __init__(self, config=None):
         self.last_sent = {}
+        self.intervals = {}
+        self.default_interval = 0
+
+        if isinstance(config, (int, float)):
+            # Optional default_interval sets default time between packets
+            self.default_interval = config
+        elif isinstance(config, dict):
+            for mac in config:
+                if helpers.check_and_format_mac(mac):
+                    i = config[mac].get("interval", config[mac].get("*", None))
+                    if i is not None:
+                        self.intervals[mac] = i
+            self.default_interval = config[mac].get("*", 0)
 
     def is_wait_over(self, mac, interval=None, now=None):
         # named argument interval is optional and
         # if not specified (None) we use self.default_interval
         if interval is None:
-            interval = self.default_interval
+            interval = self.intervals.get(mac, self.default_interval)
         if interval <= 0:  # No wait time
             return True
+
         # if optional now is not specified (None) we use time()
         if now is None:
-            now = int(time.time())
+            now = time.time()
 
         if mac not in self.last_sent:  # Must be first packet, so no need to wait
             self.last_sent[mac] = now  # mark last sent time
@@ -55,14 +69,16 @@ class Writer:
     # Parent class for all the writer classes
     type = "WriterBaseClass"
 
-    def __init__(self, wname=None, wconfig={}):
-        if wname:
-            self.name = wname
+    def __init__(self, name=None, wconfig={}):
+        if name:
+            self.name = name
         else:
             self.name = self.type
-        self.interval = wconfig.get("interval", 0)
         self.packetcount = 0
-        self.waitlist = IntervalChecker(self.interval)
+        self.waitlist = IntervalChecker(wconfig.get("interval", 0))
+        self.buffer = MessageBuffer(wconfig.get("batch", 0))
+
+        # Lastly call configure:
         self.configure(wconfig)
 
     def configure(self, wconfig):
@@ -75,9 +91,10 @@ class Writer:
 
     def send(self, mesg):
         self.packetcount += 1
-        self._send(mesg)
+        self.buffer.put(mesg)
+        self._process_buffer()
 
-    def _send(self, mesg):
+    def _process_buffer(self):
         # Each writer subclass should implement destination specific process
         pass
 
@@ -114,22 +131,24 @@ class Writer:
 class InfluxDBWriter(Writer):
     # Writer class for InfluxDB destination
     type = "influxdb"
+    connection_defaults = {
+        "host": "localhost",
+        "port": 8086,
+        "database": "",
+        "username": "root",
+        "password": "root",
+    }
+    # NOTE! Timestamp must be integer in milliseconds for the influxDB
 
     def configure(self, wconfig):
-        self.host = wconfig.get("host", "localhost")
-        self.port = wconfig.get("port", 8086)
-        self.dbuser = wconfig.get("dbuser", "root")
-        self.dbpassword = wconfig.get("dbpassword", "root")
-        self.dbname = wconfig.get("dbname", "example")
-        self.conn = InfluxDBClient(
-            host=self.host,
-            port=self.port,
-            database=self.dbname,
-            username=self.dbuser,
-            password=self.dbpassword,
+        # {k:d[k] for k in set(d).intersection(l)}
+        self.connection_settings = self.connection_defaults.copy()
+        self.connection_settings.update(
+            {k: wconfig[k] for k in set(wconfig).intersection(self.connection_defaults)}
         )
+        self.conn = InfluxDBClient(**self.connection_settings)
 
-    def _send(self, mesg):
+    def _process_buffer(self):
         pass
 
 
@@ -146,9 +165,13 @@ class FileWriter(Writer):
 
         self.f_handle = open(self.filename, "a+")
 
-    def _send(self, mesg):
+    def _process_buffer(self):
         if self.f_handle is not None:
-            self.f_handle.write("{}\r\n".format(mesg))
+            if self.buffer.is_batch_ready():
+                while not self.buffer.empty():
+                    mesg = self.buffer.get()
+                    mesg["timestamp"] = time.ctime(mesg["timestamp"])
+                    self.f_handle.write("{}\r\n".format(mesg))
 
     def close(self):
         if self.f_handle is not None:
@@ -162,7 +185,7 @@ class ThingspeakWriter(Writer):
     def configure(self, wconfig):
         pass
 
-    def _send(self, mesg):
+    def _process_buffer(self):
         pass
 
 
@@ -177,9 +200,13 @@ class ScanWriter(Writer):
     def configure(self, wconfig={}):
         self.seen_macs = {}
 
-    def _send(self, mesg):
-        self.seen_macs[mesg["mac"]] = mesg["decoder"]
-        print(mesg)
+    def _process_buffer(self):
+        if self.buffer.is_batch_ready():
+            while not self.buffer.empty():
+                mesg = self.buffer.get()
+                mesg["timestamp"] = time.ctime(mesg["timestamp"])
+                self.seen_macs[mesg["mac"]] = mesg["decoder"]
+                print(mesg)
 
     def close(self):
         print("--------- Collected macs ------------:")
@@ -190,7 +217,7 @@ class ScanWriter(Writer):
 class Writers:
     # collection of writer classes
 
-    def __init__(self, sources_config=None):
+    def __init__(self):
         self.all_writers = {}
         self.destinations = {}
         self.writer_classes = {}
@@ -198,17 +225,11 @@ class Writers:
             self.writer_classes[cls.type] = cls
 
         # add built-in Writers
-        self.add_writers({
-            'DROP': {'type': 'DROP'},
-            'SCAN': {'type': 'SCAN'},
-        })
-
-        if sources_config is not None:
-            self.setup_routing(sources_config)
+        self.add_writers({"DROP": {"type": "DROP"}, "SCAN": {"type": "SCAN"}})
 
     def setup_routing(self, sources_config):
         for mac in sources_config:
-            self.destinations[mac] = sources_config[mac].get('destinations', 'DROP')
+            self.destinations[mac] = sources_config[mac].get("destinations", "DROP")
         print(sources_config)
         print(self.destinations)
 
@@ -218,11 +239,11 @@ class Writers:
             return
 
         print("Writers.send(): mesg:", mesg)
-        dest_list = self.destinations.get(mesg['mac'], self.destinations.get('*'))
+        dest_list = self.destinations.get(mesg["mac"], self.destinations.get("*"))
         for dest in dest_list:
             if dest in self.all_writers:
-                print("Sending {} to {}.".format(mesg['mac'], self.all_writers[dest]))
-                self.all_writers[dest].send(mesg)
+                print("Sending {} to {}.".format(mesg["mac"], self.all_writers[dest]))
+                self.all_writers[dest].send(mesg.copy())
 
     def close(self):
         for w in self.all_writers.items():
@@ -232,11 +253,11 @@ class Writers:
         wtype = wconfig.get("type", None)
         if wtype in self.writer_classes:
             new_writer = self.writer_classes[wtype](wname, wconfig)
-        if new_writer:
-            self.all_writers[wname] = new_writer
-            return new_writer
-        else:
-            return None
+            if new_writer:
+                self.all_writers[wname] = new_writer
+                return new_writer
+            else:
+                return None
 
     def add_writers(self, wconfigs):
         for wname in wconfigs:

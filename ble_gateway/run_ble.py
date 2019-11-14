@@ -1,10 +1,11 @@
 import asyncio
+import time
 from timeit import default_timer as timer
 
 import aioblescan as aiobs
 from aioblescan.plugins import EddyStone
 
-from ble_gateway import decode, helpers, defs
+from ble_gateway import decode, defs, helpers
 
 
 def x_is_mac_in_list(mac_str, macs):
@@ -58,19 +59,19 @@ def run_ble(config):
         ev.decode(data)
 
         mesg = packet_info(ev)
-        if 'mac' not in mesg:  # invalid packet if no mac (peer) address
+        if "mac" not in mesg:  # invalid packet if no mac (peer) address
             return
 
-        if not config.allowed_mac(mesg['mac']):
+        if not config.allowed_mac(mesg["mac"]):
             return
 
-        mesg.update(decoder.run(mesg['mac'], ev))
+        mesg.update(decoder.run(mesg["mac"], ev))
 
         # Add message to queue
         config.Q.put(mesg)
 
         if config.SHOWRAW:
-            print("{} - Raw data: {}".format(mesg['mac'], ev.raw_data))
+            print("{} - Raw data: {}".format(mesg["mac"], ev.raw_data))
 
         # TIMING
         config.TIMER_SEC += timer() - start_t
@@ -83,6 +84,7 @@ def run_ble(config):
     if config.find_by_key("simulator", False):
         # Run BLE simulator instead of real hardware
         from ble_gateway import ble_simulator
+
         ble_simulator.run_simulator(config)
 
     else:
@@ -130,12 +132,11 @@ def run_ble(config):
         # Start BLE probe
         btctrl.send_scan_request()
         try:
-            # event_loop.run_until_complete(coro)
             event_loop.run_forever()
         except KeyboardInterrupt:
             print("\n\n\nKeyboard interrupt!")
         finally:
-            print("Closing event loop.")
+            print("Closing ble event loop.")
             btctrl.stop_scan_request()
             command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
             btctrl.send_command(command)
@@ -150,5 +151,8 @@ def run_ble(config):
             )
             # ------------------------------
 
+    config.Q.put(config.STOPMESSAGE)
+    time.sleep(5)
+    print("Exiting run_ble.")
     return 0
     # EOF run_ble

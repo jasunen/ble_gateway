@@ -28,7 +28,7 @@ class Decoder:
         self.use_fixed_decoders = False
         if sources is not None:
             for mac, mac_config in sources.items():
-                _d = mac_config.get('decoders', [])
+                _d = mac_config.get("decoders", [])
                 if "all" in _d:
                     self.mac_decoders[mac] = list(self.all_decoders.keys())
                 else:
@@ -41,10 +41,10 @@ class Decoder:
             if mac in self.mac_decoders:
                 return self.mac_decoders.get(mac)
             else:
-                return self.mac_decoders.get('*', None)
+                return self.mac_decoders.get("*", None)
 
     def run(self, mac, ev):
-        base_mesg = {'decoder': 'none'}
+        base_mesg = {"decoder": "none"}
         decoders = self.get_decoders(mac)
         if not decoders:
             return base_mesg

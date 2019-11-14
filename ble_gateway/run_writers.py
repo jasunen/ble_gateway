@@ -1,8 +1,8 @@
-import time
 import queue
+import time
 from pprint import pprint
 
-from ble_gateway import writers
+from ble_gateway import defs, writers
 
 
 def modify_packet(mesg, mconfig):
@@ -26,27 +26,29 @@ def run_writers(config):
     pprint(vars(config))
     SOURCES = list(config.SOURCES.keys())
     unknown_mac_config = config.SOURCES.get("*", {})
-    destinations = writers.Writers(config.SOURCES)
+    destinations = writers.Writers()
     destinations.add_writers(config.DESTINATIONS)
-    waitlist = writers.IntervalChecker()
+    destinations.setup_routing(config.SOURCES)
+    waitlist = writers.IntervalChecker(config.SOURCES)
 
     # Loop reading Queue and processing messages
     # If Queue has been empty longer than wait_max seconds
     # we'll break out from the loop, do clenup and return
     wait_max = config.find_by_key("no_messages_timeout", 10)
-    wait_start = int(time.time())
+    wait_start = time.time()
     print("Starting run_writers loop.")
-    while wait_max > (int(time.time()) - wait_start):
+    while wait_max > (time.time() - wait_start):
         try:
             mesg = config.Q.get_nowait()
         except queue.Empty:
             mesg = None
 
         if mesg:  # got message, let's process it
-            print("Got message from", mesg['mac'])
+            if mesg == config.STOPMESSAGE:
+                break
+
+            print("Got message from", mesg["mac"])
             wait_start = time.time()  # Reset wait timer
-            timestamp = int(wait_start * 1000)  # timestamp in milliseconds
-            wait_start = int(wait_start)
 
             # When packet is received, check if associated mac has configuration
             # defined.
@@ -57,21 +59,22 @@ def run_writers(config):
             elif unknown_mac_config:
                 mconfig = unknown_mac_config
 
-            interval = int(mconfig.get("interval", 0))
             # Check interval and discard if last sent time less than interval
-            if waitlist.is_wait_over(mac, interval, wait_start):
+            if waitlist.is_wait_over(mac, now=wait_start):
                 # modify the packet as defined in configuration
-                print(timestamp, " - let's write", mesg)
-                mesg["timestamp"] = timestamp
+                mesg["timestamp"] = wait_start  # timestamp the message
+                print("{} - let's write {}".format(time.ctime(wait_start), mesg))
                 mesg = modify_packet(mesg, mconfig)
 
                 # *** send modified packet to destinations object
                 destinations.send(mesg)
 
+                # Finally delete message as not needed
+                del mesg
         else:  # No message to process, let's do other stuff
             pass
 
     # Breaking out of the loop
     # Clean-up, close handels and files if any and return
-    print("Exiting run_writers loop.")
+    print("Exiting run_writers loop!")
     return
