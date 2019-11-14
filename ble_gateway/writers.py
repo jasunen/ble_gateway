@@ -1,6 +1,25 @@
 import time
+from queue import SimpleQueue
 
 from influxdb import InfluxDBClient
+
+
+class MessageBuffer:
+    def __init__(self, size):
+        self.buffer = SimpleQueue()
+        self.batch_size = size
+
+    def put(self, mesg):
+        self.buffer.put(mesg)
+        return(self.batch_size - self.buffer.size())
+
+    def get(self):
+        if not self.buffer.empty():
+            return self.buffer.get()
+        return None
+
+    def batch_ready(self):
+        return(self.batch_size <= self.buffer.size())
 
 
 class IntervalChecker:
