@@ -82,9 +82,17 @@ destinations:
     type: file
     filename: default_file.LOG
     batch: 10
-  test_influxdb:
+  influxdb_test:
     host: localhost
     port: 8086
+    database: ble_test
+    username: root
+    password: root
+    measurement: test
+    tags:
+    - location
+    - mac
+    - decoder
   defaults:
     fields_rename:
     - peer=mac

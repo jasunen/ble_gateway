@@ -155,7 +155,7 @@ class InfluxDBWriter(Writer):
     connection_defaults = {
         "host": "localhost",
         "port": 8086,
-        "database": "",
+        "database": "none",
         "username": "root",
         "password": "root",
     }
@@ -168,9 +168,34 @@ class InfluxDBWriter(Writer):
             {k: wconfig[k] for k in set(wconfig).intersection(self.connection_defaults)}
         )
         self.conn = InfluxDBClient(**self.connection_settings)
+        self.tags = wconfig.get('tags', [])
+        self.measurement = wconfig.get('measurement', None)
 
     def _process_buffer(self):
-        pass
+        if self.f_handle is not None:
+            if self.buffer.is_batch_ready():
+                data = []
+                influx_mesg = '{measurement},{tags} {fields} {timestamp}'
+                while not self.buffer.empty():
+                    mesg = self.buffer.get()
+                    mesg["timestamp"] = int(mesg["timestamp"] * 1000)
+                    # Construct InfluxDB line protocol message
+                    measurement = self.measurement
+                    timestamp = mesg.pop('timestamp')
+                    tags = []
+                    for tag in self.tags:
+                        if tag in list(mesg.keys()):
+                            tags.append("{}={}".format(tag, mesg.pop(tag)))
+                    tags.sort()
+                    fields = []
+                    for field, value in mesg.items():
+                        fields.append("{}={}".format(field, value))
+                    data.append(influx_mesg.format(
+                        measurement=measurement,
+                        tags=",".join(tags),
+                        fields=",".join(fields),
+                        timestamp=timestamp
+                    ))
 
 
 class FileWriter(Writer):
