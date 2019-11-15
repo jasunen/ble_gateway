@@ -96,7 +96,7 @@ class Writer:
         self._close()
 
     def send(self, mesg):
-        if self.waitlist.is_wait_over(mesg['mac']):
+        if self.waitlist.is_wait_over(mesg["mac"]):
             self.packetcount += 1
             mesg = self.modify_packet(mesg, self.config)
             self.buffer.put(mesg)
@@ -168,20 +168,20 @@ class InfluxDBWriter(Writer):
             {k: wconfig[k] for k in set(wconfig).intersection(self.connection_defaults)}
         )
         self.conn = InfluxDBClient(**self.connection_settings)
-        self.tags = wconfig.get('tags', [])
-        self.measurement = wconfig.get('measurement', None)
+        self.tags = wconfig.get("tags", [])
+        self.measurement = wconfig.get("measurement", None)
 
     def _process_buffer(self):
         if self.f_handle is not None:
             if self.buffer.is_batch_ready():
                 data = []
-                influx_mesg = '{measurement},{tags} {fields} {timestamp}'
+                influx_mesg = "{measurement},{tags} {fields} {timestamp}"
                 while not self.buffer.empty():
                     mesg = self.buffer.get()
                     mesg["timestamp"] = int(mesg["timestamp"] * 1000)
                     # Construct InfluxDB line protocol message
                     measurement = self.measurement
-                    timestamp = mesg.pop('timestamp')
+                    timestamp = mesg.pop("timestamp")
                     tags = []
                     for tag in self.tags:
                         if tag in list(mesg.keys()):
@@ -190,12 +190,14 @@ class InfluxDBWriter(Writer):
                     fields = []
                     for field, value in mesg.items():
                         fields.append("{}={}".format(field, value))
-                    data.append(influx_mesg.format(
-                        measurement=measurement,
-                        tags=",".join(tags),
-                        fields=",".join(fields),
-                        timestamp=timestamp
-                    ))
+                    data.append(
+                        influx_mesg.format(
+                            measurement=measurement,
+                            tags=",".join(tags),
+                            fields=",".join(fields),
+                            timestamp=timestamp,
+                        )
+                    )
 
 
 class FileWriter(Writer):
@@ -257,7 +259,7 @@ class ScanWriter(Writer):
     def _close(self):
         print("--------- Scanned macs ------------:")
         for mac, mesg in self.seen_macs.items():
-            mesg = self.order_fields(mesg, ['timestamp' 'mac' 'decoder'])
+            mesg = self.order_fields(mesg, ["timestamp" "mac" "decoder"])
             print(mesg)
 
 
@@ -284,10 +286,6 @@ class Writers:
         dest_list = self.destinations.get(mesg["mac"], self.destinations.get("*"))
         for dest in dest_list:
             if dest in self.all_writers:
-                if dest != "DROP":
-                    print(
-                        "Sending {} to {}.".format(mesg["mac"], self.all_writers[dest])
-                    )
                 self.all_writers[dest].send(mesg.copy())
 
     def close(self):

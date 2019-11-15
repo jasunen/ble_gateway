@@ -63,4 +63,5 @@ def run_writers(config):
     # Breaking out of the loop
     # Clean-up, close handels and files if any and return
     print("Exiting run_writers loop!")
+    destinations.close()
     return
