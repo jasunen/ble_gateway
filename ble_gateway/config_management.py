@@ -30,11 +30,27 @@ class Configuration:
 
     def update_attributes(self):
         self.ALLOWED_MACS = self.find_by_key("allowmac", [])
-        self.SOURCES = self.__config.get(defs.C_SEC_SOURCES, {})
-        self.DESTINATIONS = self.__config.get(defs.C_SEC_DESTINATIONS, {})
         self.MODE = self.find_by_key("mode", defs.GWMODE)
         self.DECODE = self.find_by_key("decode", [])
         self.SHOWRAW = self.find_by_key("showraw", False)
+
+        if self.MODE == defs.SCANMODE:
+            self.SOURCES = {
+                "*": {
+                    "destinations": ["SCAN"],
+                    "decoders": self.DECODE,
+                },
+            }
+            self.DESTINATIONS = {
+                "SCAN": {
+                    "type": "SCAN",
+                },
+            }
+        else:
+            self.SOURCES = self.__config.get(defs.C_SEC_SOURCES, {})
+            self.DESTINATIONS = self.__config.get(defs.C_SEC_DESTINATIONS, {})
+            self.DESTINATIONS['DROP'] = {'type': 'DROP'}
+            self.DESTINATIONS['SCAN'] = {'type': 'SCAN'}
 
     def update_config(self, new_config_d, merge):
         if not new_config_d or not isinstance(new_config_d, dict):

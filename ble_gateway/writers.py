@@ -80,7 +80,7 @@ class Writer:
         self.packetcount = 0
         self.waitlist = IntervalChecker(wconfig.get("interval", 0))
         self.buffer = MessageBuffer(wconfig.get("batch", 0))
-
+        self.config = wconfig
         # Lastly call configure:
         self.configure(wconfig)
 
@@ -92,13 +92,15 @@ class Writer:
     def close(self):
         self.buffer.max_batch = 0
         self._process_buffer()  # Process remaining messages
-        print("Closing", self.name)
+        print(self.name, "closing,", self.packetcount, "messages processed.")
         self._close()
 
     def send(self, mesg):
-        self.packetcount += 1
-        self.buffer.put(mesg)
-        self._process_buffer()
+        if self.waitlist.is_wait_over(mesg['mac']):
+            self.packetcount += 1
+            mesg = self.modify_packet(mesg, self.config)
+            self.buffer.put(mesg)
+            self._process_buffer()
 
     def _process_buffer(self):
         # Each writer subclass should implement destination specific process
@@ -131,6 +133,19 @@ class Writer:
             if f in mesg:
                 ordered_fields[f] = mesg.pop(f)
         mesg = {**ordered_fields, **mesg}
+        return mesg
+
+    def modify_packet(self, mesg, mconfig):
+        # *** do per source modifications:
+        # 1. Remove fields
+        mesg = self.remove_fields(mesg, mconfig.get("fields_remove", []))
+        # 2. Rename fields
+        mesg = self.rename_fields(mesg, mconfig.get("fields_rename", []))
+        # 3. Add fields
+        mesg = self.add_fields(mesg, mconfig.get("fields_add", []))
+        # 4. Order fields
+        mesg = self.order_fields(mesg, mconfig.get("fields_order", []))
+
         return mesg
 
 
@@ -174,11 +189,8 @@ class FileWriter(Writer):
 
     def _process_buffer(self):
         if self.f_handle is not None:
-            print("Handle ok.")
             if self.buffer.is_batch_ready():
-                print("Batch ready.")
                 while not self.buffer.empty():
-                    print("Writing to file")
                     mesg = self.buffer.get()
                     mesg["timestamp"] = time.ctime(mesg["timestamp"])
                     self.f_handle.write("{}\r\n".format(mesg))
@@ -212,17 +224,16 @@ class ScanWriter(Writer):
         self.seen_macs = {}
 
     def _process_buffer(self):
-        if self.buffer.is_batch_ready():
-            while not self.buffer.empty():
-                mesg = self.buffer.get()
-                mesg["timestamp"] = time.ctime(mesg["timestamp"])
-                self.seen_macs[mesg["mac"]] = mesg["decoder"]
-                print(mesg)
+        while not self.buffer.empty():
+            mesg = self.buffer.get()
+            mesg["timestamp"] = time.ctime(mesg["timestamp"])
+            self.seen_macs[mesg["mac"]] = mesg
 
     def _close(self):
-        print("--------- Collected macs ------------:")
-        for mac, decoder in self.seen_macs.items():
-            print(mac, decoder)
+        print("--------- Scanned macs ------------:")
+        for mac, mesg in self.seen_macs.items():
+            mesg = self.order_fields(mesg, ['timestamp' 'mac' 'decoder'])
+            print(mesg)
 
 
 class Writers:
@@ -234,9 +245,6 @@ class Writers:
         self.writer_classes = {}
         for cls in Writer.__subclasses__():
             self.writer_classes[cls.type] = cls
-
-        # add built-in Writers
-        self.add_writers({"DROP": {"type": "DROP"}, "SCAN": {"type": "SCAN"}})
 
     def setup_routing(self, sources_config):
         for mac in sources_config:

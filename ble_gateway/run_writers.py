@@ -5,20 +5,6 @@ from pprint import pprint
 from ble_gateway import writers
 
 
-def modify_packet(mesg, mconfig):
-    # *** do per source modifications:
-    # 1. Remove fields
-    mesg = writers.Writer().remove_fields(mesg, mconfig.get("fields_remove", []))
-    # 2. Rename fields
-    mesg = writers.Writer().rename_fields(mesg, mconfig.get("fields_rename", []))
-    # 3. Add fields
-    mesg = writers.Writer().add_fields(mesg, mconfig.get("fields_add", []))
-    # 4. Order fields
-    mesg = writers.Writer().order_fields(mesg, mconfig.get("fields_order", []))
-
-    return mesg
-
-
 # Run "writers" which take care of forwarding BLE messages to
 # destinations defined in the configuration
 def run_writers(config):
@@ -63,7 +49,7 @@ def run_writers(config):
             if waitlist.is_wait_over(mac, now=wait_start):
                 # modify the packet as defined in configuration
                 mesg["timestamp"] = wait_start  # timestamp the message
-                mesg = modify_packet(mesg, mconfig)
+                mesg = writers.Writer().modify_packet(mesg, mconfig)
 
                 # *** send modified packet to destinations object
                 # print("{} - let's write {}".format(time.ctime(wait_start), mesg))
