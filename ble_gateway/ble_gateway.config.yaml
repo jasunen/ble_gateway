@@ -18,6 +18,8 @@ common:
   # writeconfig: ble_gateway/ble_gateway.config.defaults.yaml
   no_messages_timeout: 10
   decode:
+  - all
+  - unknown
   # mode: SCAN
   mode: GATEWAY
   simulator: false

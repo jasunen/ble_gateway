@@ -137,10 +137,10 @@ def run_ble(config):
             event_loop.close()
 
             # TIMING
-            print(config.TIMER_COUNT, "calls.")
+            print(config.TIMER_COUNT, "ble messages.")
             print(
                 1000 * 1000 * config.TIMER_SEC / config.TIMER_COUNT,
-                "usec in average per call.",
+                "usec in average per message in callback_data_handler().",
             )
             # ------------------------------
 

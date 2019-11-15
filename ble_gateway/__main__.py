@@ -188,9 +188,9 @@ def main():
             break
 
     config.quit_event.set()
-    config.Q.put(config.STOPMESSAGE)
-
     ble_process.join()
+
+    config.Q.put(config.STOPMESSAGE)
     writers_process.join()
 
     print("Exiting main.")

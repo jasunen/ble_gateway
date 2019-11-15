@@ -23,6 +23,7 @@ def run_writers(config):
     wait_max = config.find_by_key("no_messages_timeout", 10)
     wait_start = time.time()
     print("Starting run_writers loop.")
+    packet_counter = 0
     while wait_max > (time.time() - wait_start):
         try:
             mesg = config.Q.get_nowait()
@@ -53,7 +54,9 @@ def run_writers(config):
 
                 # *** send modified packet to destinations object
                 # print("{} - let's write {}".format(time.ctime(wait_start), mesg))
-                print(".", end="")
+                packet_counter += 1
+                if packet_counter % 25 == 0:
+                    print(packet_counter(), "messages received.")
                 destinations.send(mesg)
 
                 # Finally delete message as not needed
