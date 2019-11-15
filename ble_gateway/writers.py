@@ -289,7 +289,7 @@ class Writers:
                 self.all_writers[dest].send(mesg.copy())
 
     def close(self):
-        for w in self.all_writers.items():
+        for w in self.all_writers.values():
             w.close()
 
     def add_writer(self, wname, wconfig):
