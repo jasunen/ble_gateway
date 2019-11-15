@@ -56,7 +56,7 @@ def run_writers(config):
                 # print("{} - let's write {}".format(time.ctime(wait_start), mesg))
                 packet_counter += 1
                 if packet_counter % 25 == 0:
-                    print(packet_counter(), "messages received.")
+                    print(packet_counter, "messages received.")
                 destinations.send(mesg)
 
                 # Finally delete message as not needed
