@@ -38,14 +38,13 @@ sources:
     destinations:
     - DROP
     interval: 0
-    fields_order:
     decoders:
     - all
     - unknown
   defaults:
     destinations:
     - default_file
-    interval: 5
+    interval: 0
     # fields in fields_order will be first, other fields remain as is
     fields_order:
     - timestamp
@@ -56,16 +55,22 @@ sources:
   da:b6:f7:69:c3:45:
     decoders:
     - ruuviraw
+    destinations:
+    - influxdb_test
     fields_add:
     - location=Ulkona
   e6:16:76:cf:e6:e3:
     decoders:
     - ruuviraw
+    destinations:
+    - influxdb_test
     fields_add:
     - location=Olohuone
   e2:e2:4f:4d:6c:77:
     decoders:
     - ruuviraw
+    destinations:
+    - influxdb_test
     fields_add:
     - location=Makuuhuone
 #
@@ -84,12 +89,14 @@ destinations:
     filename: default_file.LOG
     batch: 10
   influxdb_test:
+    type: influxdb
     host: localhost
     port: 8086
     database: ble_test
     username: root
     password: root
     measurement: test
+    batch: 10
     tags:
     - location
     - mac
@@ -97,4 +104,4 @@ destinations:
   defaults:
     fields_rename:
     - peer=mac
-    interval: 6
+    interval: 0

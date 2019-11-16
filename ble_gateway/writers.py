@@ -85,7 +85,7 @@ class Writer:
         self.configure(wconfig)
 
     def configure(self, wconfig):
-        # Each subclass must define class specific configure()
+        # Each subclass MUST define class specific configure()
         # which is then called by __init__ of the Writer base class
         pass
 
@@ -94,6 +94,10 @@ class Writer:
         self._process_buffer()  # Process remaining messages
         print(self.name, "closing,", self.packetcount, "messages processed.")
         self._close()
+
+    def _close(self):
+        # Each subclass should define class specific _close()
+        pass
 
     def send(self, mesg):
         if self.waitlist.is_wait_over(mesg["mac"]):
@@ -172,32 +176,33 @@ class InfluxDBWriter(Writer):
         self.measurement = wconfig.get("measurement", None)
 
     def _process_buffer(self):
-        if self.f_handle is not None:
-            if self.buffer.is_batch_ready():
-                data = []
-                influx_mesg = "{measurement},{tags} {fields} {timestamp}"
-                while not self.buffer.empty():
-                    mesg = self.buffer.get()
-                    mesg["timestamp"] = int(mesg["timestamp"] * 1000)
-                    # Construct InfluxDB line protocol message
-                    measurement = self.measurement
-                    timestamp = mesg.pop("timestamp")
-                    tags = []
-                    for tag in self.tags:
-                        if tag in list(mesg.keys()):
-                            tags.append("{}={}".format(tag, mesg.pop(tag)))
-                    tags.sort()
-                    fields = []
-                    for field, value in mesg.items():
-                        fields.append("{}={}".format(field, value))
-                    data.append(
-                        influx_mesg.format(
-                            measurement=measurement,
-                            tags=",".join(tags),
-                            fields=",".join(fields),
-                            timestamp=timestamp,
-                        )
+        if self.buffer.is_batch_ready():
+            data = []
+            influx_mesg = "{measurement},{tags} {fields} {timestamp}"
+            while not self.buffer.empty():
+                mesg = self.buffer.get()
+                mesg["timestamp"] = int(mesg["timestamp"] * 1000)
+                # Construct InfluxDB line protocol message
+                measurement = self.measurement
+                timestamp = mesg.pop("timestamp")
+                tags = []
+                for tag in self.tags:
+                    if tag in list(mesg.keys()):
+                        tags.append("{}={}".format(tag, mesg.pop(tag)))
+                tags.sort()
+                fields = []
+                for field, value in mesg.items():
+                    fields.append("{}={}".format(field, value))
+                data.append(
+                    influx_mesg.format(
+                        measurement=measurement,
+                        tags=",".join(tags),
+                        fields=",".join(fields),
+                        timestamp=timestamp,
                     )
+                )
+            for line in data:
+                print(line)
 
 
 class FileWriter(Writer):

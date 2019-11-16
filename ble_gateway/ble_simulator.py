@@ -30,7 +30,9 @@ def run_simulator(config):
         mesg = {}
         mesg["mac"] = random.choice(simulated_macs)
         mesg["decoder"] = random.choice(simulated_decoders)
+        mesg["simutemp"] = round(random.randint(0, 400) / 10 - 20, 2)
+        mesg["simuhumid"] = round(random.randint(0, 200) / 10 + 20, 2)
         config.Q.put(mesg)
-        time.sleep(1)
+        time.sleep(0.2)
 
     print("Closing simulator.")
