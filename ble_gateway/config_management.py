@@ -35,22 +35,13 @@ class Configuration:
         self.SHOWRAW = self.find_by_key("showraw", False)
 
         if self.MODE == defs.SCANMODE:
-            self.SOURCES = {
-                "*": {
-                    "destinations": ["SCAN"],
-                    "decoders": self.DECODE,
-                },
-            }
-            self.DESTINATIONS = {
-                "SCAN": {
-                    "type": "SCAN",
-                },
-            }
+            self.SOURCES = {"*": {"destinations": ["SCAN"], "decoders": self.DECODE}}
+            self.DESTINATIONS = {"SCAN": {"type": "SCAN"}}
         else:
             self.SOURCES = self.__config.get(defs.C_SEC_SOURCES, {})
             self.DESTINATIONS = self.__config.get(defs.C_SEC_DESTINATIONS, {})
-            self.DESTINATIONS['DROP'] = {'type': 'DROP'}
-            self.DESTINATIONS['SCAN'] = {'type': 'SCAN'}
+            self.DESTINATIONS["DROP"] = {"type": "DROP"}
+            self.DESTINATIONS["SCAN"] = {"type": "SCAN"}
 
     def update_config(self, new_config_d, merge):
         if not new_config_d or not isinstance(new_config_d, dict):
@@ -117,26 +108,25 @@ class Configuration:
             with open(file) as f:
                 print("Reading configfile:", file)
                 yaml = ruamel.yaml.YAML()
-                # yaml = ruamel.yaml.YAML(typ="safe", pure=True)
-                # d = yaml.load(f, Loader=yaml.BaseLoader)
                 d = yaml.load(f)
-                # d = yaml.safe_load(f)
-                self.update_config(d, True)
-            return True
+            return d
         else:
             print("No configfile found:", file)
             return None
 
-    def write_configfile(self, file):
+    def write_configfile(self, file, config={}):
+        if not file:
+            return
+        if not config:
+            config = self.__config
         _out = {}
         _out.update(self.__config)
         yaml = ruamel.yaml.YAML()
-        # yaml = ruamel.yaml.YAML(typ="safe", pure=True)
         if file == "-":
-            print("Running config:")
+            print("Configuration as YAML:")
             yaml.dump(_out, sys.stdout)
         else:
-            print("Writing configfile:", file)
+            print("Writing to configfile:", file)
             with open(file, "w") as f:
                 yaml.dump(_out, f)
 

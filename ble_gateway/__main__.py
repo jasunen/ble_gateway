@@ -152,22 +152,29 @@ def parse_command_line(defaults_dict):
 
 def main():
 
-    # Create configuration object with default configuration parameters
+    # Create configuration object with built-in default configuration parameters
     config = config_management.Configuration()
 
-    # Parse command line arguments
-    _opts = parse_command_line(config.get_config_dict())
-
-    # Read config file and
-    # merge command line arguments into current configuration
-    config.load_configfile(_opts.configfile)
+    # Parse command line arguments first time just to get configfile
+    args = parse_command_line(config.get_config_dict())
+    # Read config file and merge to built-in defaults
+    d = config.load_configfile(args.configfile)
+    if d:
+        config.update_config(d, True)
 
     # Command line parameters override defaults and configuration file
-    _opts = parse_command_line(config.get_config_dict())
-    config.update_config({defs.C_SEC_COMMON: vars(_opts)}, True)
+    # so we parse command line parameters again using configuration
+    # from configfile as new defaults
+    args = vars(parse_command_line(config.get_config_dict()))
+    # removing options which are 'none'
+    for arg in list(args.keys()):
+        if not args[arg]:
+            args.pop(arg)
+    # merge command line arguments into current configuration's 'common' section
+    config.update_config({defs.C_SEC_COMMON: args}, True)
 
-    if _opts.writeconfig:
-        config.write_configfile(_opts.writeconfig)
+    if "writeconfig" in args:
+        config.write_configfile(args["writeconfig"])
         return 0
 
     config.print()

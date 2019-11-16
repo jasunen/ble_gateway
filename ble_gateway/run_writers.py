@@ -9,7 +9,7 @@ from ble_gateway import writers
 # destinations defined in the configuration
 def run_writers(config):
     # Instanciate all destination objects with proper configuration
-    pprint(vars(config))
+    # pprint(vars(config))
     SOURCES = list(config.SOURCES.keys())
     unknown_mac_config = config.SOURCES.get("*", {})
     destinations = writers.Writers()

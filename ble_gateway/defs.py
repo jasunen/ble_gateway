@@ -15,7 +15,7 @@ DEFAULT_CONFIG = {
     #
     # COMMON section:
     #
-    C_SEC_COMMON: {"scan": False, "device": int(0), "no_messages_timeout": int(10)},
+    C_SEC_COMMON: {"device": int(0), "no_messages_timeout": int(10)},
     #
     # SOURCES section:
     #
