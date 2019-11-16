@@ -210,7 +210,10 @@ class InfluxDBWriter(Writer):
                 tags.sort()
                 fields = []
                 for field, value in mesg.items():
-                    fields.append("{}={}".format(field, value))
+                    if isinstance(value, int):
+                        fields.append("{}={}i".format(field, value))
+                    else:
+                        fields.append("{}={}".format(field, value))
                 data.append(
                     influx_mesg.format(
                         measurement=measurement,
