@@ -116,7 +116,7 @@ destinations:
     database: ruuvi
     username: root
     password: root
-    measurement: test2
+    measurement: ruuvi_measurements
     batch: 10
     interval: 10
     tags:

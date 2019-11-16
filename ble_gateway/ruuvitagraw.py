@@ -77,9 +77,9 @@ class RuuviTagRaw(object):
         dz = int.from_bytes(data[10:12], "big", signed=True)
         length = sqrt(dx ** 2 + dy ** 2 + dz ** 2)
         result["acceleration"] = length
-        result["acceleration_x"] = dx
-        result["acceleration_y"] = dy
-        result["acceleration_z"] = dz
+        result["acceleration_x"] = int(dx)
+        result["acceleration_y"] = int(dy)
+        result["acceleration_z"] = int(dz)
         result["battery"] = int.from_bytes(data[12:14], "big")
 
     def _decode_df5(self, data, result):
@@ -108,9 +108,9 @@ class RuuviTagRaw(object):
         dz = twos_complement((data[11] << 8) + data[12], 16)
         length = sqrt(dx ** 2 + dy ** 2 + dz ** 2)
         result["acceleration"] = length
-        result["acceleration_x"] = dx
-        result["acceleration_y"] = dy
-        result["acceleration_z"] = dz
+        result["acceleration_x"] = int(dx)
+        result["acceleration_y"] = int(dy)
+        result["acceleration_z"] = int(dz)
         result["movement_counter"] = data[15] & 0xFF
         result["measurement_sequence_number"] = (data[16] & 0xFF) << 8 | data[17] & 0xFF
 
