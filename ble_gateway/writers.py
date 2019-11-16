@@ -9,11 +9,11 @@ from ble_gateway import helpers
 class MessageBuffer:
     def __init__(self, batch_size):
         self._buffer = SimpleQueue()
-        self.max_batch = batch_size
+        self.set_batch_size(batch_size)
 
     def put(self, mesg):
         self._buffer.put(mesg)
-        return self.max_batch - self._buffer.qsize()
+        return self.batch_size - self._buffer.qsize()
 
     def get(self):
         if not self._buffer.empty():
@@ -21,10 +21,18 @@ class MessageBuffer:
         return None
 
     def is_batch_ready(self):
-        return self.max_batch <= self._buffer.qsize()
+        return self.batch_size <= self._buffer.qsize()
 
     def empty(self):
         return self._buffer.empty()
+
+    def set_batch_size(self, batch_size):
+        if batch_size < 1 or not isinstance(batch_size, (int, float)):
+            batch_size = 1
+        self.batch_size = int(batch_size)
+
+    def get_batch_size(self):
+        return self.batch_size
 
 
 class IntervalChecker:
@@ -90,7 +98,7 @@ class Writer:
         pass
 
     def close(self):
-        self.buffer.max_batch = 0
+        self.buffer.set_batch_size(0)
         self._process_buffer()  # Process remaining messages
         print(self.name, "closing,", self.packetcount, "messages processed.")
         self._close()
@@ -171,7 +179,7 @@ class InfluxDBWriter(Writer):
         self.connection_settings.update(
             {k: wconfig[k] for k in set(wconfig).intersection(self.connection_defaults)}
         )
-        self.conn = InfluxDBClient(**self.connection_settings)
+        self.client = InfluxDBClient(**self.connection_settings)
         self.tags = wconfig.get("tags", [])
         self.measurement = wconfig.get("measurement", None)
 
@@ -201,8 +209,17 @@ class InfluxDBWriter(Writer):
                         timestamp=timestamp,
                     )
                 )
-            for line in data:
-                print(line)
+            # for line in data:
+            #    print(line)
+
+            # Write to influxdb
+            self.client.write_points(
+                data,
+                database=self.connection_settings["database"],
+                time_precision="ms",
+                batch_size=self.buffer.get_batch_size(),
+                protocol="line",
+            )
 
 
 class FileWriter(Writer):

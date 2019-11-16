@@ -79,14 +79,14 @@ sources:
     destinations:
     - influxdb_test
     fields_add:
-    - location=alapohja
+    - location=Alapohja
   e8:8d:16:b2:bb:73:
     decoders:
     - ruuviraw
     destinations:
     - influxdb_test
     fields_add:
-    - location=emmanhuone
+    - location=Emmanhuone
   d2:c5:d2:a4:d6:56:
     decoders:
     - ruuviraw
@@ -111,13 +111,14 @@ destinations:
     batch: 10
   influxdb_test:
     type: influxdb
-    host: localhost
+    host: jani-3620
     port: 8086
-    database: ble_test
+    database: ruuvi
     username: root
     password: root
     measurement: test
     batch: 10
+    interval: 10
     tags:
     - location
     - mac
