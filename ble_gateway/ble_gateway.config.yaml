@@ -116,13 +116,23 @@ destinations:
     database: ruuvi
     username: root
     password: root
-    measurement: test
+    measurement: test2
     batch: 10
     interval: 10
     tags:
     - location
     - mac
     - decoder
+    fields_rename:
+    - acceleration_x=accelerationX
+    - acceleration_y=accelerationY
+    - acceleration_z=accelerationZ
+    - movement_counter=movementCounter
+    - measurement_sequence_number=measurementSequenceNumber
+    - battery=batteryVoltage
+    - tx_power=txPower
+    values_uppercase:
+    - mac
   defaults:
     fields_rename:
     - peer=mac

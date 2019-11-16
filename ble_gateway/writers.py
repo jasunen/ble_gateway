@@ -147,6 +147,14 @@ class Writer:
         mesg = {**ordered_fields, **mesg}
         return mesg
 
+    def uppercase_values(self, mesg, fields):
+        for f in fields:
+            if f in mesg:
+                value = mesg[f]
+                if isinstance(value, str):
+                    mesg[f] = value.upper()
+        return mesg
+
     def modify_packet(self, mesg, mconfig):
         # *** do per source modifications:
         # 1. Remove fields
@@ -155,7 +163,9 @@ class Writer:
         mesg = self.rename_fields(mesg, mconfig.get("fields_rename", []))
         # 3. Add fields
         mesg = self.add_fields(mesg, mconfig.get("fields_add", []))
-        # 4. Order fields
+        # Change fields' value to uppercase
+        mesg = self.uppercase_values(mesg, mconfig.get("values_uppercase", []))
+        # 4. Order fields - should be last modification
         mesg = self.order_fields(mesg, mconfig.get("fields_order", []))
 
         return mesg
