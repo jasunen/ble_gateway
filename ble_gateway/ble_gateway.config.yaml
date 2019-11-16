@@ -73,6 +73,27 @@ sources:
     - influxdb_test
     fields_add:
     - location=Makuuhuone
+  dc:ad:98:6e:75:a4:
+    decoders:
+    - ruuviraw
+    destinations:
+    - influxdb_test
+    fields_add:
+    - location=alapohja
+  e8:8d:16:b2:bb:73:
+    decoders:
+    - ruuviraw
+    destinations:
+    - influxdb_test
+    fields_add:
+    - location=emmanhuone
+  d2:c5:d2:a4:d6:56:
+    decoders:
+    - ruuviraw
+    destinations:
+    - influxdb_test
+    fields_add:
+    - location=Joelinhuone
 #
 # DESTINATIONS section:
 #
