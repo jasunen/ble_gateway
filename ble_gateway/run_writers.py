@@ -60,6 +60,7 @@ def run_writers(config):
                 # *** send modified packet to destinations object
                 # print("{} - let's write {}".format(time.ctime(wait_start), mesg))
                 packet_counter += 1
+                destinations.send(mesg)
 
                 # Finally delete message as not needed
                 del mesg
