@@ -191,7 +191,7 @@ def main():
     # May be a busy loop here -- implementing event/signal handler ????
     while True:
         user_cmd = input("Command: ")
-        if user_cmd == "q":
+        if user_cmd == "q" or config.quit_event.is_set():
             break
 
     config.quit_event.set()

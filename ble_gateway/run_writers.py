@@ -24,14 +24,19 @@ def run_writers(config):
     wait_start = time.time()
     print("Starting run_writers loop.")
     packet_counter = 0
-    while wait_max > (time.time() - wait_start):
+    while True:
         try:
             mesg = config.Q.get_nowait()
         except queue.Empty:
             mesg = None
 
+        if wait_max < (time.time() - wait_start):
+            print("Time out in runwriter, no messages for", wait_max, "seconds.")
+            break
+
         if mesg:  # got message, let's process it
             if mesg == config.STOPMESSAGE:
+                print("STOP message received in run_writers.")
                 break
 
             # print("Got message from", mesg["mac"])
@@ -55,9 +60,6 @@ def run_writers(config):
                 # *** send modified packet to destinations object
                 # print("{} - let's write {}".format(time.ctime(wait_start), mesg))
                 packet_counter += 1
-                if packet_counter % 25 == 0:
-                    print(packet_counter, "messages received.")
-                destinations.send(mesg)
 
                 # Finally delete message as not needed
                 del mesg
@@ -68,4 +70,5 @@ def run_writers(config):
     # Clean-up, close handels and files if any and return
     print("Exiting run_writers loop!")
     destinations.close()
+    config.quit_event.set()
     return
