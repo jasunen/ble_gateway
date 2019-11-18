@@ -4,7 +4,7 @@
 import argparse
 import os
 import sys
-from multiprocessing import Process, Queue
+from multiprocessing import Event, Process, Queue
 
 from ble_gateway import config_management, defs, helpers, run_ble, run_writers
 
@@ -53,14 +53,27 @@ def define_cmd_line_arguments(parser, defaults_dict):
         Note that this overrides allowmac list in the configuration file, if any.",
     )
     parser.add_argument(
+        "-G",
+        "--gateway",
+        action="store_const",
+        const=defs.GWMODE,
+        dest="mode",
+        help="Start in Gateway mode. Forwards messages to destinations \
+        (writers) specified in the configuration file. \
+        ",
+    )
+    parser.add_argument(
         "-S",
         "--scan",
-        action="store_true",
-        default=defaults_dict[defs.C_SEC_COMMON].get("scan"),
+        action="store_const",
+        const=defs.SCANMODE,
+        dest="mode",
         help="Start in Scan mode. Listen to broadcasts and just \
         collect mac addresses. \
-        Disables forwarding of messages to any destination (writers). \
-        With --decode option tries to identify message type. \
+        Disables forwarding of messages to any destinations specified \
+        in the configuration file \
+        (other than built-in 'SCAN' destination). \
+        With --decode option tries to identify and decode messages. \
         ",
     )
     parser.add_argument(
@@ -112,6 +125,12 @@ def define_cmd_line_arguments(parser, defaults_dict):
         default=defaults_dict[defs.C_SEC_COMMON].get("device"),
         help="Select the hciX device to use (default 0, i.e. hci0).",
     )
+    parser.add_argument(
+        "--simulator",
+        action="store_true",
+        default=defaults_dict[defs.C_SEC_COMMON].get("simulator"),
+        help="Use simulated messages instead of real bluetooth hardware.",
+    )
 
 
 # EOF add_cmd_line_arguments
@@ -133,40 +152,56 @@ def parse_command_line(defaults_dict):
 
 def main():
 
-    # Create configuration object with default configuration parameters
+    # Create configuration object with built-in default configuration parameters
     config = config_management.Configuration()
 
-    # Parse command line arguments
-    _opts = parse_command_line(config.get_config_dict())
-
-    # Read config file and
-    # merge command line arguments into current configuration
-    config.load_configfile(_opts.configfile)
+    # Parse command line arguments first time just to get configfile
+    args = parse_command_line(config.get_config_dict())
+    # Read config file and merge to built-in defaults
+    d = config.load_configfile(args.configfile)
+    if d:
+        config.update_config(d, True)
 
     # Command line parameters override defaults and configuration file
-    _opts = parse_command_line(config.get_config_dict())
-    config.update_config({defs.C_SEC_COMMON: vars(_opts)}, True)
+    # so we parse command line parameters again using configuration
+    # from configfile as new defaults
+    args = vars(parse_command_line(config.get_config_dict()))
+    # removing options which are 'none'
+    for arg in list(args.keys()):
+        if not args[arg]:
+            args.pop(arg)
+    # merge command line arguments into current configuration's 'common' section
+    config.update_config({defs.C_SEC_COMMON: args}, True)
 
-    if _opts.writeconfig:
-        config.write_configfile(_opts.writeconfig)
+    if "writeconfig" in args:
+        config.write_configfile(args["writeconfig"])
         return 0
 
     config.print()
 
-    if config.SCANMODE:
-        config.SEEN_MACS = {}
-        print("--------- Running in SCAN mode ------------:")
-        run_ble.run_ble(config)
-        print("--------- Collected macs ------------:")
-        for seen in config.SEEN_MACS.keys():
-            print(seen, config.SEEN_MACS[seen])
-    else:
-        print("--------- Running in GATEWAY mode ------------:")
-        config.Q = Queue()
-        _p = Process(target=run_writers.run_writers, args=(config,))
-        _p.start()
-        run_ble.run_ble(config)
-        _p.join()
+    config.Q = Queue()
+    config.quit_event = Event()
+    writers_process = Process(target=run_writers.run_writers, args=(config,))
+    ble_process = Process(target=run_ble.run_ble, args=(config,))
+
+    print("--------- Running in {} mode ------------".format(config.MODE))
+    writers_process.start()
+    ble_process.start()
+
+    # May be a busy loop here -- implementing event/signal handler ????
+    while True:
+        user_cmd = input("Command: ")
+        if user_cmd == "q" or config.quit_event.is_set():
+            break
+
+    config.quit_event.set()
+    ble_process.join()
+
+    config.Q.put(config.STOPMESSAGE)
+    writers_process.join()
+
+    print("Exiting main.")
+    return 0
 
 
 if __name__ == "__main__":

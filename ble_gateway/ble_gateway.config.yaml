@@ -1,32 +1,139 @@
+# Keys are case insensitive
+# Actually when reading the configuration
+# all the keys are converted to lowercase
+# BUT values are case SENSITIVE, so be carefull
+# Configuration has following sections:
+# 'common', 'sources', 'destinations'
+#
+# COMMON section:
 #
 common:
-  device: 1
-  scan: false
+  allowmac:
   showraw: false
-  advertise: null
-  allowmac: null
-  decode: all
+  advertise: 0
+  url: http://0.0.0.0/
   txpower: 0
-  url: null
-  writeconfig: null
+  device: 0
+  # writeconfig: ble_gateway/ble_gateway.config.defaults.yaml
+  no_messages_timeout: 10
+  decode:
+  - all
+  - unknown
+  # mode: SCAN
+  mode: GATEWAY
+  simulator: false
 #
-destinations:
-  default_file:
-    filename: default_file.LOG
-    type: file
+# SOURCES section:
 #
+# Settings defined in source DEFAULTS are applied first
+# to all other defined sources. Additional settings
+# defined for a particular source will override settings
+# inherited from DEFAULTS
 sources:
-  E2:E2:4F:4D:6C:77:
-    decoders:
-    - ruuviraw
-    fields_add:
-    - location=Makuuhuone
-  defaults:
+  # Optional source settings for "*" will be applied to packets
+  # which are not matched to any defined mac address
+  '*':
+    # There is built-in destination called DROP which just discards
+    # the packet and can be used in any source definition
+    destinations:
+    - DROP
+    interval: 0
     decoders:
     - all
+    - unknown
+  defaults:
     destinations:
     - default_file
-    intervall: 20
-# Bogus sections
-something:
-  invalid: whatnot
+    interval: 0
+    # fields in fields_order will be first, other fields remain as is
+    fields_order:
+    - timestamp
+    - mac
+    decoders:
+    - all
+  # Mac addresses (as they are keys) will be converted to lowercase
+  da:b6:f7:69:c3:45:
+    decoders:
+    - ruuviraw
+    destinations:
+    - influxdb_test
+    fields_add:
+    - location=Ulkona
+  e6:16:76:cf:e6:e3:
+    decoders:
+    - ruuviraw
+    destinations:
+    - influxdb_test
+    fields_add:
+    - location=Olohuone
+  e2:e2:4f:4d:6c:77:
+    decoders:
+    - ruuviraw
+    destinations:
+    - influxdb_test
+    fields_add:
+    - location=Makuuhuone
+  dc:ad:98:6e:75:a4:
+    decoders:
+    - ruuviraw
+    destinations:
+    - influxdb_test
+    fields_add:
+    - location=Alapohja
+  e8:8d:16:b2:bb:73:
+    decoders:
+    - ruuviraw
+    destinations:
+    - influxdb_test
+    fields_add:
+    - location=Emmanhuone
+  d2:c5:d2:a4:d6:56:
+    decoders:
+    - ruuviraw
+    destinations:
+    - influxdb_test
+    fields_add:
+    - location=Joelinhuone
+#
+# DESTINATIONS section:
+#
+# Settings defined in destination DEFAULTS are applied first
+# to all defined destinations. Additional settings
+# defined for a particular destination will override settings
+# inherited from DEFAULTS
+destinations:
+  default_file:
+    fields_remove:
+    - tx_power
+    interval: 20
+    type: file
+    filename: default_file.LOG
+    batch: 10
+  influxdb_test:
+    type: influxdb
+    host: jani-3620
+    port: 8086
+    database: ruuvi
+    username: root
+    password: root
+    measurement: ruuvi_measurements
+    batch: 10
+    interval: 10
+    tags:
+    - location
+    - mac
+    - decoder
+    fields_rename:
+    - acceleration_x=accelerationX
+    - acceleration_y=accelerationY
+    - acceleration_z=accelerationZ
+    - movement_counter=movementCounter
+    - measurement_sequence_number=measurementSequenceNumber
+    - battery=batteryVoltage
+    - tx_power=txPower
+    values_uppercase:
+    - mac
+  defaults:
+    fields_rename:
+    - peer=mac
+    interval: 0

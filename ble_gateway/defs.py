@@ -1,3 +1,6 @@
+SCANMODE = "SCAN"
+GWMODE = "GATEWAY"
+
 C_SEC_COMMON = "common"
 C_SEC_SOURCES = "sources"
 C_SEC_DESTINATIONS = "destinations"
@@ -12,17 +15,7 @@ DEFAULT_CONFIG = {
     #
     # COMMON section:
     #
-    C_SEC_COMMON: {
-        "scan": False,
-        "allowmac": [],
-        "showraw": False,
-        "advertise": int(0),
-        "url": "http://0.0.0.0/",
-        "txpower": int(0),
-        "device": int(0),
-        "writeconfig": None,
-        "no_messages_timeout": int(600),
-    },
+    C_SEC_COMMON: {"device": int(0), "no_messages_timeout": int(10)},
     #
     # SOURCES section:
     #
@@ -32,24 +25,15 @@ DEFAULT_CONFIG = {
         # defined for a particular source will override settings
         # inherited from DEFAULTS
         "DEFAULTS": {
-            "destinations": ["default_file"],
-            "intervall": 10,
+            "interval": 3,
             # fields in fields_order will be first, other fields remain as is
-            "fields_order": ["timestamp", "mac"],
         },
-        # Mac addresses (as they are keys) will be converted to lowercase
-        "DA:B6:F7:69:C3:45": {
-            "decoders": ["ruuviraw"],
-            # fields in fields_order will be first, other fields remain as is
-            "fields_add": ["location=Ulkona"],  # list vs dict vs list of tuples??
-        },
-        # source settings for "_UNKNOWN_" will be applied to packets
-        # which are not matched to any mac in "sources"
-        "UNKNOWN": {
-            "decoders": ["all", "unknown"],
+        # Optional source settings for "*" will be applied to packets
+        # which are not matched to any defined mac address
+        "*": {
             # There is built-in destination called DROP which just discards
             # the packet and can be used in any source definition
-            "destinations": ["DROP"],
+            "destinations": ["DROP"]
         },
     },
     #
@@ -60,7 +44,6 @@ DEFAULT_CONFIG = {
         # to all defined destinations. Additional settings
         # defined for a particular destination will override settings
         # inherited from DEFAULTS
-        "DEFAULTS": {"fields_rename": {"peer": "mac"}, "fields_remove": ["tx_power"]},
-        "default_file": {"type": "file", "filename": "default_file.out"},
+        "DEFAULTS": {}
     },
 }

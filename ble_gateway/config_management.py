@@ -11,6 +11,8 @@ from ble_gateway import defs, helpers
 
 
 class Configuration:
+    STOPMESSAGE = "STOP"
+
     def __init__(self):
         # Configuration has following sections:
         # 'common', 'sources', 'destinations'
@@ -25,6 +27,21 @@ class Configuration:
 
     def get_config_dict(self):
         return self.__config
+
+    def update_attributes(self):
+        self.ALLOWED_MACS = self.find_by_key("allowmac", [])
+        self.MODE = self.find_by_key("mode", defs.GWMODE)
+        self.DECODE = self.find_by_key("decode", [])
+        self.SHOWRAW = self.find_by_key("showraw", False)
+
+        if self.MODE == defs.SCANMODE:
+            self.SOURCES = {"*": {"destinations": ["SCAN"], "decoders": self.DECODE}}
+            self.DESTINATIONS = {"SCAN": {"type": "SCAN"}}
+        else:
+            self.SOURCES = self.__config.get(defs.C_SEC_SOURCES, {})
+            self.DESTINATIONS = self.__config.get(defs.C_SEC_DESTINATIONS, {})
+            self.DESTINATIONS["DROP"] = {"type": "DROP"}
+            self.DESTINATIONS["SCAN"] = {"type": "SCAN"}
 
     def update_config(self, new_config_d, merge):
         if not new_config_d or not isinstance(new_config_d, dict):
@@ -73,15 +90,9 @@ class Configuration:
                 self.__config[defs.C_SEC_SOURCES][new_mac] = self.__config[
                     defs.C_SEC_SOURCES
                 ].pop(mac)
+        self.update_attributes()
 
-        self.ALLOWED_MACS = self.find_by_key("allowmac", [])
-        self.SOURCE_MACS = self.find_by_key(defs.C_SEC_SOURCES, {})
-        self.DESTINATIONS = self.find_by_key(defs.C_SEC_DESTINATIONS, {})
-        self.SCANMODE = self.find_by_key("scan", False)
-        self.DECODE = self.find_by_key("decode", [])
-        self.SHOWRAW = self.find_by_key("showraw", False)
-
-    def find_by_key(self, key, default):
+    def find_by_key(self, key, default=None):
         for section in self.__config_sections:
             found = self.__config[section].get(key, None)
             if found is not None:
@@ -97,26 +108,25 @@ class Configuration:
             with open(file) as f:
                 print("Reading configfile:", file)
                 yaml = ruamel.yaml.YAML()
-                # yaml = ruamel.yaml.YAML(typ="safe", pure=True)
-                # d = yaml.load(f, Loader=yaml.BaseLoader)
                 d = yaml.load(f)
-                # d = yaml.safe_load(f)
-                self.update_config(d, True)
-            return True
+            return d
         else:
             print("No configfile found:", file)
             return None
 
-    def write_configfile(self, file):
+    def write_configfile(self, file, config={}):
+        if not file:
+            return
+        if not config:
+            config = self.__config
         _out = {}
         _out.update(self.__config)
         yaml = ruamel.yaml.YAML()
-        # yaml = ruamel.yaml.YAML(typ="safe", pure=True)
         if file == "-":
-            print("Running config:")
+            print("Configuration as YAML:")
             yaml.dump(_out, sys.stdout)
         else:
-            print("Writing configfile:", file)
+            print("Writing to configfile:", file)
             with open(file, "w") as f:
                 yaml.dump(_out, f)
 

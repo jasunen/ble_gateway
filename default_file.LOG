@@ -1,0 +1,2 @@
+{'timestamp': 1573669651913, 'mac': 'e2:e2:4f:4d:6c:77', 'decoder': 'ruuviurl', 'location': 'Makuuhuone'}
+{'timestamp': 1573669661922, 'mac': 'da:b6:f7:69:c3:45', 'decoder': 'ruuviraw', 'location': 'Ulkona'}
