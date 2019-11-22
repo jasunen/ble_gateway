@@ -33,6 +33,8 @@ class Configuration:
         self.MODE = self.find_by_key("mode", defs.GWMODE)
         self.DECODE = self.find_by_key("decode", [])
         self.SHOWRAW = self.find_by_key("showraw", False)
+        self.SIMULATOR = self.find_by_key("simulator", False)
+        self.DEVICE = self.find_by_key("device", 0)
 
         if self.MODE == defs.SCANMODE:
             self.SOURCES = {"*": {"destinations": ["SCAN"], "decoders": self.DECODE}}

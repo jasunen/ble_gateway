@@ -1,5 +1,6 @@
 from aioblescan.plugins import BlueMaestro, EddyStone
 
+from ble_gateway import helpers
 from ble_gateway.ruuvitagraw import RuuviTagRaw
 from ble_gateway.ruuvitagurl import RuuviTagUrl
 
@@ -63,3 +64,18 @@ class Decoder:
                 return {**base_mesg, **mesg}
 
         return base_mesg
+
+    @staticmethod
+    def packet_info(ev):
+        # Get basic packet info
+        mesg = {}
+        for key in ["rssi", "peer", "tx_power"]:
+            info = ev.retrieve(key)
+            if info:
+                # ev.retrieve('peer') returns list of mac addresses of
+                # the Packet (should be only one..)
+                # peer object type is aioblescan.MACaddr
+                if key == "peer":  # We use key 'mac' instead of 'peer', so rename
+                    key = "mac"
+                mesg[key] = helpers._lowercase_all(info[-1].val)
+        return mesg

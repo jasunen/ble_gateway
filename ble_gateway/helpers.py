@@ -1,4 +1,30 @@
 import re
+from timeit import default_timer as timer
+
+
+class StopWatch:
+    def __init__(self):
+        self.TIMER_SECS = 0.0  # Cumulative seconds
+        self.TIMER_COUNT = 0  # Cumulative counter
+
+    def start(self):
+        self.__start_t = timer()
+
+    def stop(self):
+        self.TIMER_SECS += (timer() - self.__start_t)
+        self.TIMER_COUNT += 1
+
+    def get_count(self):
+        return self.TIMER_COUNT
+
+    def get_average(self):
+        if self.TIMER_COUNT > 0:
+            return(self.TIMER_SECS / self.TIMER_COUNT)
+        else:
+            return(0)
+
+    def reset(self):
+        self.__init__()
 
 
 # helper func to verify and format macaddress

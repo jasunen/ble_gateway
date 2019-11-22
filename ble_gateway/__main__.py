@@ -4,9 +4,11 @@
 import argparse
 import os
 import sys
+import queue
 from multiprocessing import Event, Process, Queue
 
-from ble_gateway import config_management, defs, helpers, run_ble, run_writers
+import aioblescan as aiobs
+from ble_gateway import config_management, defs, helpers, run_ble, run_writers, decode
 
 
 def define_cmd_line_arguments(parser, defaults_dict):
@@ -179,25 +181,80 @@ def main():
 
     config.print()
 
-    config.Q = Queue()
-    config.quit_event = Event()
-    writers_process = Process(target=run_writers.run_writers, args=(config,))
-    ble_process = Process(target=run_ble.run_ble, args=(config,))
+    # Setup communication channels for subprocesses
+    decoder_q = Queue()
+    writers_q = Queue()
+    QUIT_BLE_EVENT = Event()
+
+    # Setup writers subprocess
+    writers_process = Process(target=run_writers.run_writers,
+                              args=(config,
+                                    writers_q,))
+
+    # Setup BLE subprocess (either simulator or real hardware)
+    if config.SIMULATOR:
+        # Run BLE simulator instead of real hardware
+        from ble_gateway import ble_simulator
+        ble_process = Process(target=ble_simulator.run_simulator,
+                              args=(config,))
+    else:
+        # Setup real BLE process
+        ble_process = Process(target=run_ble.run_ble,
+                              args=(config.DEVICE,
+                                    QUIT_BLE_EVENT,
+                                    decoder_q,))
 
     print("--------- Running in {} mode ------------".format(config.MODE))
-    writers_process.start()
     ble_process.start()
 
+    decoder = decode.Decoder()
+    if config.MODE == defs.SCANMODE:
+        decoder.enable_fixed_decoders(config.DECODE)
+    else:
+        decoder.enable_per_mac_decoders(config.SOURCES)
     # May be a busy loop here -- implementing event/signal handler ????
     while True:
-        user_cmd = input("Command: ")
-        if user_cmd == "q" or config.quit_event.is_set():
-            break
+        # DECODE START ---------------------------------------------
+        # Read decoder queue
+        try:
+            data = decoder_q.get_nowait()
+        except queue.Empty:
+            data = None
 
-    config.quit_event.set()
+        while data:  # got data, let's decode it
+            if config.SIMULATOR:
+                # Using BLE simulator -> data already "decoded"
+                mesg = data
+                if config.ALLOWED_MACS and mesg["mac"] not in config.ALLOWED_MACS:
+                    break
+            else:
+                ev = aiobs.HCI_Event()
+                ev.decode(data)
+
+                mesg = decode.Decoder.packet_info(ev)
+                if "mac" not in mesg:  # invalid packet if no mac (peer) address
+                    break
+
+                if config.ALLOWED_MACS and mesg["mac"] not in config.ALLOWED_MACS:
+                    break
+
+                mesg.update(decoder.run(mesg["mac"], ev))
+                if config.SHOWRAW:
+                    print("{} - Raw data: {}".format(mesg["mac"], ev.raw_data))
+
+            # Send decoded message to writers
+            data = None
+            writers_q.put(mesg)
+
+        # DECODE STOP ---------------------------------------------
+
+    # LOOP STOP-----------------------------------------------------------
+
+    # Stop subprocesses and cleanup
+    QUIT_BLE_EVENT.set()
     ble_process.join()
 
-    config.Q.put(config.STOPMESSAGE)
+    writers_q.put(config.STOPMESSAGE)
     writers_process.join()
 
     print("Exiting main.")

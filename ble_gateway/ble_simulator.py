@@ -25,7 +25,7 @@ def run_simulator(config):
     simulated_decoders = list(decode.Decoder.all_decoders)
 
     print("Entering ble_simulator loop.")
-    while not config.quit_event.is_set():
+    while not config.QUIT_BLE_EVENT.is_set():
         # Do simulator stuff
         mesg = {}
         mesg["mac"] = random.choice(simulated_macs)

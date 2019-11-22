@@ -7,7 +7,7 @@ from ble_gateway import writers
 
 # Run "writers" which take care of forwarding BLE messages to
 # destinations defined in the configuration
-def run_writers(config):
+def run_writers(config, writers_q):
     # Instanciate all destination objects with proper configuration
     # pprint(vars(config))
     SOURCES = list(config.SOURCES.keys())
@@ -20,13 +20,13 @@ def run_writers(config):
     # Loop reading Queue and processing messages
     # If Queue has been empty longer than wait_max seconds
     # we'll break out from the loop, do clenup and return
-    wait_max = config.find_by_key("no_messages_timeout", 10)
+    wait_max = config.find_by_key("no_messages_timeout", 60)
     wait_start = time.time()
     print("Starting run_writers loop.")
     packet_counter = 0
     while True:
         try:
-            mesg = config.Q.get_nowait()
+            mesg = writers_q.get_nowait()
         except queue.Empty:
             mesg = None
 
@@ -71,5 +71,4 @@ def run_writers(config):
     # Clean-up, close handels and files if any and return
     print("Exiting run_writers loop!")
     destinations.close()
-    config.quit_event.set()
     return
