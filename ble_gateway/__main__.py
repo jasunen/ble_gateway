@@ -3,12 +3,12 @@
 
 import argparse
 import os
-import sys
 import queue
+import sys
 from multiprocessing import Event, Process, Queue
+from time import sleep
 
-import aioblescan as aiobs
-from ble_gateway import config_management, defs, helpers, run_ble, run_writers, decode
+from ble_gateway import config_management, decode, defs, helpers, run_ble, run_writers
 
 
 def define_cmd_line_arguments(parser, defaults_dict):
@@ -129,9 +129,11 @@ def define_cmd_line_arguments(parser, defaults_dict):
     )
     parser.add_argument(
         "--simulator",
-        action="store_true",
+        metavar="N",
+        type=int,
         default=defaults_dict[defs.C_SEC_COMMON].get("simulator"),
-        help="Use simulated messages instead of real bluetooth hardware.",
+        help="Use simulated messages instead of real bluetooth hardware.\
+        Generate N messgaes and exit.",
     )
 
 
@@ -187,32 +189,33 @@ def main():
     QUIT_BLE_EVENT = Event()
 
     # Setup writers subprocess
-    writers_process = Process(target=run_writers.run_writers,
-                              args=(config,
-                                    writers_q,))
+    writers_process = Process(target=run_writers.run_writers, args=(config, writers_q))
 
     # Setup BLE subprocess (either simulator or real hardware)
     if config.SIMULATOR:
         # Run BLE simulator instead of real hardware
         from ble_gateway import ble_simulator
-        ble_process = Process(target=ble_simulator.run_simulator,
-                              args=(config,))
+
+        ble_process = Process(
+            target=ble_simulator.run_simulator, args=(config, QUIT_BLE_EVENT, decoder_q)
+        )
     else:
         # Setup real BLE process
-        ble_process = Process(target=run_ble.run_ble,
-                              args=(config.DEVICE,
-                                    QUIT_BLE_EVENT,
-                                    decoder_q,))
+        ble_process = Process(
+            target=run_ble.run_ble, args=(config.DEVICE, QUIT_BLE_EVENT, decoder_q)
+        )
 
     print("--------- Running in {} mode ------------".format(config.MODE))
     ble_process.start()
+    writers_process.start()
 
     decoder = decode.Decoder()
     if config.MODE == defs.SCANMODE:
         decoder.enable_fixed_decoders(config.DECODE)
     else:
         decoder.enable_per_mac_decoders(config.SOURCES)
-    # May be a busy loop here -- implementing event/signal handler ????
+
+    # Main loop here -- implementing event/signal handler to break out of it??
     while True:
         # DECODE START ---------------------------------------------
         # Read decoder queue
@@ -221,46 +224,42 @@ def main():
         except queue.Empty:
             data = None
 
-        while data:  # got data, let's decode it
-            if config.SIMULATOR:
-                # Using BLE simulator -> data already "decoded"
-                mesg = data
-                if config.ALLOWED_MACS and mesg["mac"] not in config.ALLOWED_MACS:
-                    break
-            else:
-                ev = aiobs.HCI_Event()
-                ev.decode(data)
-
-                mesg = decode.Decoder.packet_info(ev)
-                if "mac" not in mesg:  # invalid packet if no mac (peer) address
-                    break
-
-                if config.ALLOWED_MACS and mesg["mac"] not in config.ALLOWED_MACS:
-                    break
-
-                mesg.update(decoder.run(mesg["mac"], ev))
+        if data:  # got data, let's decode it
+            if data == defs.STOPMESSAGE:
+                print("STOP message received from ble_process.")
+                break
+            mesg = decoder.run(data)
+            if mesg and (not config.ALLOWED_MACS or mesg["mac"] in config.ALLOWED_MACS):
+                # Send decoded message to writers
+                writers_q.put(mesg)
                 if config.SHOWRAW:
-                    print("{} - Raw data: {}".format(mesg["mac"], ev.raw_data))
+                    print("{} - Raw data: {}".format(mesg["mac"], data))
 
-            # Send decoded message to writers
-            data = None
-            writers_q.put(mesg)
+        if not writers_process.is_alive() or not ble_process.is_alive():
+            break
 
         # DECODE STOP ---------------------------------------------
 
     # LOOP STOP-----------------------------------------------------------
 
     # Stop subprocesses and cleanup
+    print("Closing main.")
     QUIT_BLE_EVENT.set()
+    writers_q.put(defs.STOPMESSAGE)
+    sleep(1)
+    while not decoder_q.empty():
+        decoder_q.get_nowait()
+    while not writers_q.empty():
+        decoder_q.get_nowait()
     ble_process.join()
-
-    writers_q.put(config.STOPMESSAGE)
     writers_process.join()
 
-    print("Exiting main.")
-    return 0
+    return config.SIMULATOR
 
 
 if __name__ == "__main__":
-    exit_code = main()
+    exit_code = 0
+    while exit_code == 0:
+        exit_code = main()
+    print("Exiting ({})".format(exit_code))
     sys.exit(exit_code)

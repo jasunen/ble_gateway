@@ -25,9 +25,9 @@ def run_ble(hci_dev, QUIT_BLE_EVENT, decoder_q):
 
         if QUIT_BLE_EVENT.is_set():
             event_loop.stop()
-
-        # Add message to queue
-        decoder_q.put(data)
+        else:
+            # Add message to queue
+            decoder_q.put(data)
 
         # TIMING
         my_timer.stop()

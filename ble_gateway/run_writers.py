@@ -1,8 +1,9 @@
 import queue
 import time
-from pprint import pprint
 
-from ble_gateway import writers
+from ble_gateway import defs, writers
+
+# from pprint import pprint
 
 
 # Run "writers" which take care of forwarding BLE messages to
@@ -35,8 +36,8 @@ def run_writers(config, writers_q):
             break
 
         if mesg:  # got message, let's process it
-            if mesg == config.STOPMESSAGE:
-                print("STOP message received in run_writers.")
+            if mesg == defs.STOPMESSAGE:
+                print("STOP message received in writers_process.")
                 break
 
             # print("Got message from", mesg["mac"])

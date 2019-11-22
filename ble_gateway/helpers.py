@@ -11,7 +11,7 @@ class StopWatch:
         self.__start_t = timer()
 
     def stop(self):
-        self.TIMER_SECS += (timer() - self.__start_t)
+        self.TIMER_SECS += timer() - self.__start_t
         self.TIMER_COUNT += 1
 
     def get_count(self):
@@ -19,9 +19,9 @@ class StopWatch:
 
     def get_average(self):
         if self.TIMER_COUNT > 0:
-            return(self.TIMER_SECS / self.TIMER_COUNT)
+            return self.TIMER_SECS / self.TIMER_COUNT
         else:
-            return(0)
+            return 0
 
     def reset(self):
         self.__init__()
