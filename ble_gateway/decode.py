@@ -84,7 +84,7 @@ class Decoder:
         for decoder in decoders:
             func = self.all_decoders.get(decoder, None)
             if func:
-                mesg = func(ev)
+                mesg.update(func(ev))
             if mesg:
                 mesg["decoder"] = decoder
                 return {**base_mesg, **mesg}
