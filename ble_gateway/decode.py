@@ -73,6 +73,7 @@ class Decoder:
         ev.decode(data)
         mesg = packet_info(ev)
         if "mac" not in mesg:  # invalid packet if no mac (peer) address
+            print("Decoder: invalid message, no mac.")
             return base_mesg
 
         decoders = self.get_decoders(mesg["mac"])
