@@ -49,9 +49,6 @@ def run_writers(config, writers_q):
                 # print("{} - let's write {}".format(time.ctime(wait_start), mesg))
                 destinations.send(mesg)
 
-                # Finally delete message as not needed
-                del mesg
-
             my_timer.split()
 
         # No valid message to process, let's do other stuff

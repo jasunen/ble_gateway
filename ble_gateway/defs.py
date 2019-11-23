@@ -16,7 +16,12 @@ DEFAULT_CONFIG = {
     #
     # COMMON section:
     #
-    C_SEC_COMMON: {"device": int(0), "no_messages_timeout": int(10)},
+    C_SEC_COMMON: {
+        "device": int(0),
+        "no_messages_timeout": int(10),
+        "simulator": int(0),
+        "max_mesgs": int(0),
+    },
     #
     # SOURCES section:
     #

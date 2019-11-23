@@ -135,6 +135,13 @@ def define_cmd_line_arguments(parser, defaults_dict):
         help="Use simulated messages instead of real bluetooth hardware.\
         Generate N messgaes and exit.",
     )
+    parser.add_argument(
+        "--max_mesgs",
+        metavar="N",
+        type=int,
+        default=defaults_dict[defs.C_SEC_COMMON].get("max_mesgs"),
+        help="Receive max N messgaes and exit.",
+    )
 
 
 # EOF add_cmd_line_arguments
@@ -250,6 +257,10 @@ def main():
 
             my_timer.split()
 
+            if config.MAX_MESGS and config.MAX_MESGS <= my_timer.get_count():
+                print("Max message limit reached!")
+                break
+
         # DECODE STOP ---------------------------------------------
     # MAIN LOOP STOP -----------------------------------------------------------
 
@@ -276,7 +287,10 @@ def main():
     ble_process.join()
     writers_process.join()
 
-    return config.SIMULATOR
+    exit_code = config.SIMULATOR
+    if config.MAX_MESGS:
+        exit_code = config.MAX_MESGS
+    return exit_code
 
 
 if __name__ == "__main__":
