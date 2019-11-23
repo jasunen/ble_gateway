@@ -3,16 +3,39 @@ from timeit import default_timer as timer
 
 
 class StopWatch:
-    def __init__(self):
+    def __init__(self, timeout=0):
         self.TIMER_SECS = 0.0  # Cumulative seconds
         self.TIMER_COUNT = 0  # Cumulative counter
+        self.__start_t = self.now()
+        self.__timeout = timeout
+        self.MAX_SPLIT = 0.0
 
     def start(self):
-        self.__start_t = timer()
+        self.__start_t = self.now()
+        return self.__start_t
 
-    def stop(self):
-        self.TIMER_SECS += timer() - self.__start_t
+    def split(self):
+        split_t = self.now()
+        laptime = split_t - self.__start_t
+        self.MAX_SPLIT = max(self.MAX_SPLIT, laptime)
+        self.TIMER_SECS += laptime
         self.TIMER_COUNT += 1
+        return split_t
+
+    def set_timeout(self, tout):
+        self.__timeout = tout
+
+    def get_timeout(self):
+        return self.__timeout
+
+    def is_timeout(self):
+        if self.__timeout:
+            return self.now() - self.__start_t > self.__timeout
+        else:
+            return False
+
+    def now(self):
+        return timer()
 
     def get_count(self):
         return self.TIMER_COUNT
@@ -24,7 +47,7 @@ class StopWatch:
             return 0
 
     def reset(self):
-        self.__init__()
+        self.__init__(self.__timeout)
 
 
 # helper func to verify and format macaddress

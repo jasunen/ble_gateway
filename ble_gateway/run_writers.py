@@ -1,12 +1,11 @@
 import queue
-import time
 
-from ble_gateway import defs, writers
+from ble_gateway import defs, helpers, writers
 
 # from pprint import pprint
 
 
-# Run "writers" which take care of forwarding BLE messages to
+# Run_writers takes care of forwarding BLE messages to
 # destinations defined in the configuration
 def run_writers(config, writers_q):
     # Instanciate all destination objects with proper configuration
@@ -19,29 +18,17 @@ def run_writers(config, writers_q):
     waitlist = writers.IntervalChecker(config.SOURCES)
 
     # Loop reading Queue and processing messages
-    # If Queue has been empty longer than wait_max seconds
-    # we'll break out from the loop, do clenup and return
-    wait_max = config.find_by_key("no_messages_timeout", 60)
-    wait_start = time.time()
     print("Starting run_writers loop.")
-    packet_counter = 0
+    my_timer = helpers.StopWatch()
     while True:
         try:
             mesg = writers_q.get_nowait()
         except queue.Empty:
             mesg = None
 
-        if wait_max < (time.time() - wait_start):
-            print("Time out in runwriter, no messages for", wait_max, "seconds.")
-            break
-
-        if mesg:  # got message, let's process it
-            if mesg == defs.STOPMESSAGE:
-                print("STOP message received in writers_process.")
-                break
-
+        if mesg and "mac" in mesg:  # got valid message, let's process it
             # print("Got message from", mesg["mac"])
-            wait_start = time.time()  # Reset wait timer
+            _now = my_timer.start()
 
             # When packet is received, check if associated mac has configuration
             # defined.
@@ -53,23 +40,38 @@ def run_writers(config, writers_q):
                 mconfig = unknown_mac_config
 
             # Check interval and discard if last sent time less than interval
-            if waitlist.is_wait_over(mac, now=wait_start):
+            if waitlist.is_wait_over(mac, now=_now):
                 # modify the packet as defined in configuration
-                mesg["timestamp"] = wait_start  # timestamp the message
+                mesg["timestamp"] = _now  # timestamp the message
                 mesg = writers.Writer().modify_packet(mesg, mconfig)
 
                 # *** send modified packet to destinations object
                 # print("{} - let's write {}".format(time.ctime(wait_start), mesg))
-                packet_counter += 1
                 destinations.send(mesg)
 
                 # Finally delete message as not needed
                 del mesg
-        else:  # No message to process, let's do other stuff
-            pass
+
+            my_timer.split()
+
+        # No valid message to process, let's do other stuff
+        if mesg == defs.STOPMESSAGE:
+            print("STOP message received in writers_process.")
+            break
 
     # Breaking out of the loop
     # Clean-up, close handels and files if any and return
     print("Exiting run_writers loop!")
+    print("{} valid messages received.".format(my_timer.get_count()))
+    print(
+        "Average time for writing a message was {} usecs.".format(
+            my_timer.get_average() * 1000 * 1000
+        )
+    )
+    print(
+        "Max time for writing a message was {} usecs.".format(
+            my_timer.MAX_SPLIT * 1000 * 1000
+        )
+    )
     destinations.close()
     return

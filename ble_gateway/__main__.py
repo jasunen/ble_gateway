@@ -216,15 +216,28 @@ def main():
         decoder.enable_per_mac_decoders(config.SOURCES)
 
     # Main loop here -- implementing event/signal handler to break out of it??
-    while True:
+    # If no messages received from BLE_process for >no_messgae_timeout seconds
+    # we'll break out from the loop, do clenup and exit main loop
+    my_timer = helpers.StopWatch(config.find_by_key("no_messages_timeout", 60))
+    # MAIN LOOP START -----------------------------------------------------------
+    while writers_process.is_alive() and ble_process.is_alive():
         # DECODE START ---------------------------------------------
         # Read decoder queue
         try:
             data = decoder_q.get_nowait()
         except queue.Empty:
             data = None
+            if my_timer.is_timeout():
+                print(
+                    "Time out! No messages received from BLE for",
+                    my_timer.get_timeout(),
+                    "seconds.",
+                )
+                break
 
         if data:  # got data, let's decode it
+            my_timer.start()  # Reset wait timer
+
             if data == defs.STOPMESSAGE:
                 print("STOP message received from ble_process.")
                 break
@@ -235,22 +248,31 @@ def main():
                 if config.SHOWRAW:
                     print("{} - Raw data: {}".format(mesg["mac"], data))
 
-        if not writers_process.is_alive() or not ble_process.is_alive():
-            break
+            my_timer.split()
 
         # DECODE STOP ---------------------------------------------
-
-    # LOOP STOP-----------------------------------------------------------
+    # MAIN LOOP STOP -----------------------------------------------------------
 
     # Stop subprocesses and cleanup
     print("Closing main.")
+    print("{} messages received for decode.".format(my_timer.get_count()))
+    print(
+        "Average time for decoding a message was {} usecs.".format(
+            my_timer.get_average() * 1000 * 1000
+        )
+    )
+    print(
+        "Max time for decoding a message was {} usecs.".format(
+            my_timer.MAX_SPLIT * 1000 * 1000
+        )
+    )
     QUIT_BLE_EVENT.set()
     writers_q.put(defs.STOPMESSAGE)
     sleep(1)
     while not decoder_q.empty():
-        decoder_q.get_nowait()
+        decoder_q.get(block=True, timeout=0.05)
     while not writers_q.empty():
-        decoder_q.get_nowait()
+        writers_q.get(block=True, timeout=0.05)
     ble_process.join()
     writers_process.join()
 
@@ -258,8 +280,9 @@ def main():
 
 
 if __name__ == "__main__":
-    exit_code = 0
+    exit_code = main()
     while exit_code == 0:
+        print("Restarting main() !!")
         exit_code = main()
-    print("Exiting ({})".format(exit_code))
+    print("Exiting with code ({})".format(exit_code))
     sys.exit(exit_code)

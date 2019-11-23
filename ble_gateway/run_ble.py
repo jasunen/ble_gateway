@@ -30,7 +30,7 @@ def run_ble(hci_dev, QUIT_BLE_EVENT, decoder_q):
             decoder_q.put(data)
 
         # TIMING
-        my_timer.stop()
+        my_timer.split()
         # ------------------------------
 
     # ---------------------------------------------------
