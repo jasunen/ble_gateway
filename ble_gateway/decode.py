@@ -63,8 +63,8 @@ class Decoder:
             else:
                 return self.mac_decoders.get("*", None)
 
-    def run(self, data, simulator=False):
-        if simulator:
+    def run(self, data, simulator=0):
+        if simulator > 0:
             # data is from BLE simulator, just return the data
             return data
 
@@ -73,7 +73,7 @@ class Decoder:
         ev.decode(data)
         mesg = packet_info(ev)
         if "mac" not in mesg:  # invalid packet if no mac (peer) address
-            return None
+            return base_mesg
 
         decoders = self.get_decoders(mesg["mac"])
         if not decoders:
