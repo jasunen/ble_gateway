@@ -161,11 +161,7 @@ def parse_command_line(defaults_dict):
     return _opts
 
 
-def main():
-
-    # Create configuration object with built-in default configuration parameters
-    config = config_management.Configuration()
-
+def setup_configuration(config):
     # Parse command line arguments first time just to get configfile
     args = parse_command_line(config.get_config_dict())
     # Read config file and merge to built-in defaults
@@ -186,9 +182,16 @@ def main():
 
     if "writeconfig" in args:
         config.write_configfile(args["writeconfig"])
-        return 0
+        sys.exit(0)
 
     config.print()
+
+
+def main():
+
+    # Create configuration object with built-in default configuration parameters
+    config = config_management.Configuration()
+    setup_configuration(config)
 
     # Setup communication channels for subprocesses
     decoder_q = Queue()

@@ -1,5 +1,5 @@
 import re
-from timeit import default_timer as timer
+import time
 
 
 class StopWatch:
@@ -35,7 +35,7 @@ class StopWatch:
             return False
 
     def now(self):
-        return timer()
+        return time.time()
 
     def get_count(self):
         return self.TIMER_COUNT
