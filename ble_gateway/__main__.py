@@ -253,7 +253,7 @@ def main():
                 # Send decoded message to writers
                 writers_q.put(mesg)
                 if config.SHOWRAW:
-                    print("{} - Raw data: {}".format(mesg["mac"], data))
+                    print("Raw data: {}".format(data))
 
             my_timer.split()
 
