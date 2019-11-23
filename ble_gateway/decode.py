@@ -64,8 +64,8 @@ class Decoder:
                 return self.mac_decoders.get("*", None)
 
     def run(self, data, simulator=False):
-        if not data or simulator:
-            # data is empty or from BLE simulator, just return the data
+        if simulator:
+            # data is from BLE simulator, just return the data
             return data
 
         base_mesg = {"decoder": "none"}
