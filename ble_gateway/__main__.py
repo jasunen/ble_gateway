@@ -248,7 +248,7 @@ def main():
             if data == defs.STOPMESSAGE:
                 print("STOP message received from ble_process.")
                 break
-            mesg = decoder.run(data)
+            mesg = decoder.run(data, simulator=(config.SIMULATOR > 0))
             if mesg and (not config.ALLOWED_MACS or mesg["mac"] in config.ALLOWED_MACS):
                 # Send decoded message to writers
                 writers_q.put(mesg)
