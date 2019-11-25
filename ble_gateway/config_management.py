@@ -11,8 +11,6 @@ from ble_gateway import defs, helpers
 
 
 class Configuration:
-    STOPMESSAGE = "STOP"
-
     def __init__(self):
         # Configuration has following sections:
         # 'common', 'sources', 'destinations'
@@ -33,6 +31,14 @@ class Configuration:
         self.MODE = self.find_by_key("mode", defs.GWMODE)
         self.DECODE = self.find_by_key("decode", [])
         self.SHOWRAW = self.find_by_key("showraw", False)
+        self.SIMULATOR = self.find_by_key("simulator", 0)
+        self.DEVICE = self.find_by_key("device", 0)
+        self.MAX_MESGS = self.find_by_key("max_mesgs", 0)
+
+        if self.SIMULATOR:
+            self.SIMUMACS = list(self.SOURCES.keys())
+            self.SIMUMACS.remove("*")
+            self.SIMUMACS.remove("defaults")
 
         if self.MODE == defs.SCANMODE:
             self.SOURCES = {"*": {"destinations": ["SCAN"], "decoders": self.DECODE}}

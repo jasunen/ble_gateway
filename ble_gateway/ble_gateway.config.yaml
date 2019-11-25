@@ -21,7 +21,7 @@ common:
   - unknown
   # mode: SCAN
   mode: GATEWAY
-  simulator: false
+  simulator: 0
 #
 # SOURCES section:
 #

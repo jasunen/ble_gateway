@@ -1,7 +1,24 @@
+import aioblescan as aiobs
 from aioblescan.plugins import BlueMaestro, EddyStone
 
+from ble_gateway import helpers
 from ble_gateway.ruuvitagraw import RuuviTagRaw
 from ble_gateway.ruuvitagurl import RuuviTagUrl
+
+
+def packet_info(ev):
+    # Get basic packet info
+    mesg = {}
+    for key in ["rssi", "peer", "tx_power"]:
+        info = ev.retrieve(key)
+        if info:
+            # ev.retrieve('peer') returns list of mac addresses of
+            # the Packet (should be only one..)
+            # peer object type is aioblescan.MACaddr
+            if key == "peer":  # We use key 'mac' instead of 'peer', so rename
+                key = "mac"
+            mesg[key] = helpers._lowercase_all(info[-1].val)
+    return mesg
 
 
 class Decoder:
@@ -46,18 +63,28 @@ class Decoder:
             else:
                 return self.mac_decoders.get("*", None)
 
-    def run(self, mac, ev):
+    def run(self, data, simulator=0):
+        if simulator > 0:
+            # data is from BLE simulator, just return the data
+            return data
+
         base_mesg = {"decoder": "none"}
-        decoders = self.get_decoders(mac)
+        ev = aiobs.HCI_Event()
+        ev.decode(data)
+        mesg = packet_info(ev)
+        if "mac" not in mesg:  # invalid packet if no mac (peer) address
+            print("Decoder: invalid message, no mac.")
+            return base_mesg
+
+        decoders = self.get_decoders(mesg["mac"])
         if not decoders:
             return base_mesg
 
         # Try actually decode the message
-        mesg = {}
         for decoder in decoders:
             func = self.all_decoders.get(decoder, None)
             if func:
-                mesg = func(ev)
+                mesg.update(func(ev))
             if mesg:
                 mesg["decoder"] = decoder
                 return {**base_mesg, **mesg}

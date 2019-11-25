@@ -3,10 +3,12 @@
 
 import argparse
 import os
+import queue
 import sys
 from multiprocessing import Event, Process, Queue
+from time import sleep
 
-from ble_gateway import config_management, defs, helpers, run_ble, run_writers
+from ble_gateway import config_management, decode, defs, helpers, run_ble, run_writers
 
 
 def define_cmd_line_arguments(parser, defaults_dict):
@@ -127,9 +129,18 @@ def define_cmd_line_arguments(parser, defaults_dict):
     )
     parser.add_argument(
         "--simulator",
-        action="store_true",
+        metavar="N",
+        type=int,
         default=defaults_dict[defs.C_SEC_COMMON].get("simulator"),
-        help="Use simulated messages instead of real bluetooth hardware.",
+        help="Use simulated messages instead of real bluetooth hardware.\
+        Generate N messgaes and exit.",
+    )
+    parser.add_argument(
+        "--max_mesgs",
+        metavar="N",
+        type=int,
+        default=defaults_dict[defs.C_SEC_COMMON].get("max_mesgs"),
+        help="Receive max N messgaes and exit.",
     )
 
 
@@ -150,11 +161,7 @@ def parse_command_line(defaults_dict):
     return _opts
 
 
-def main():
-
-    # Create configuration object with built-in default configuration parameters
-    config = config_management.Configuration()
-
+def setup_configuration(config):
     # Parse command line arguments first time just to get configfile
     args = parse_command_line(config.get_config_dict())
     # Read config file and merge to built-in defaults
@@ -175,35 +182,126 @@ def main():
 
     if "writeconfig" in args:
         config.write_configfile(args["writeconfig"])
-        return 0
+        sys.exit(0)
 
     config.print()
 
-    config.Q = Queue()
-    config.quit_event = Event()
-    writers_process = Process(target=run_writers.run_writers, args=(config,))
-    ble_process = Process(target=run_ble.run_ble, args=(config,))
+
+def main():
+
+    # Create configuration object with built-in default configuration parameters
+    config = config_management.Configuration()
+    setup_configuration(config)
+
+    # Setup communication channels for subprocesses
+    decoder_q = Queue()
+    writers_q = Queue()
+    QUIT_BLE_EVENT = Event()
+
+    # Setup writers subprocess
+    writers_process = Process(target=run_writers.run_writers, args=(config, writers_q))
+
+    # Setup BLE subprocess (either simulator or real hardware)
+    if config.SIMULATOR:
+        # Run BLE simulator instead of real hardware
+        from ble_gateway import ble_simulator
+
+        ble_process = Process(
+            target=ble_simulator.run_simulator, args=(config, QUIT_BLE_EVENT, decoder_q)
+        )
+    else:
+        # Setup real BLE process
+        ble_process = Process(
+            target=run_ble.run_ble, args=(config.DEVICE, QUIT_BLE_EVENT, decoder_q)
+        )
 
     print("--------- Running in {} mode ------------".format(config.MODE))
-    writers_process.start()
     ble_process.start()
+    writers_process.start()
 
-    # May be a busy loop here -- implementing event/signal handler ????
-    while True:
-        user_cmd = input("Command: ")
-        if user_cmd == "q" or config.quit_event.is_set():
-            break
+    decoder = decode.Decoder()
+    if config.MODE == defs.SCANMODE:
+        decoder.enable_fixed_decoders(config.DECODE)
+    else:
+        decoder.enable_per_mac_decoders(config.SOURCES)
 
-    config.quit_event.set()
+    # Main loop here -- implementing event/signal handler to break out of it??
+    # If no messages received from BLE_process for >no_messgae_timeout seconds
+    # we'll break out from the loop, do clenup and exit main loop
+    my_timer = helpers.StopWatch(config.find_by_key("no_messages_timeout", 60))
+    # MAIN LOOP START -----------------------------------------------------------
+    while writers_process.is_alive() and ble_process.is_alive():
+        # DECODE START ---------------------------------------------
+        # Read decoder queue
+        try:
+            data = decoder_q.get_nowait()
+        except queue.Empty:
+            data = None
+            if my_timer.is_timeout():
+                print(
+                    "Time out! No messages received from BLE for",
+                    my_timer.get_timeout(),
+                    "seconds.",
+                )
+                break
+
+        if data:  # got data, let's decode it
+            my_timer.start()  # Reset wait timer
+
+            if data == defs.STOPMESSAGE:
+                print("STOP message received from ble_process.")
+                break
+            mesg = decoder.run(data, simulator=config.SIMULATOR)
+            if "mac" in mesg and (
+                not config.ALLOWED_MACS or mesg["mac"] in config.ALLOWED_MACS
+            ):
+                # Send decoded message to writers
+                writers_q.put(mesg)
+                if config.SHOWRAW:
+                    print("Raw data: {}".format(data))
+
+            my_timer.split()
+
+            if config.MAX_MESGS and config.MAX_MESGS <= my_timer.get_count():
+                print("Max message limit reached!")
+                break
+
+        # DECODE STOP ---------------------------------------------
+    # MAIN LOOP STOP -----------------------------------------------------------
+
+    # Stop subprocesses and cleanup
+    print("Closing main.")
+    print("{} messages received for decode.".format(my_timer.get_count()))
+    print(
+        "Average time for decoding a message was {} usecs.".format(
+            my_timer.get_average() * 1000 * 1000
+        )
+    )
+    print(
+        "Max time for decoding a message was {} usecs.".format(
+            my_timer.MAX_SPLIT * 1000 * 1000
+        )
+    )
+    QUIT_BLE_EVENT.set()
+    writers_q.put(defs.STOPMESSAGE)
+    sleep(1)
+    while not decoder_q.empty():
+        decoder_q.get(block=True, timeout=0.05)
+    while not writers_q.empty():
+        writers_q.get(block=True, timeout=0.05)
     ble_process.join()
-
-    config.Q.put(config.STOPMESSAGE)
     writers_process.join()
 
-    print("Exiting main.")
-    return 0
+    exit_code = config.SIMULATOR
+    if config.MAX_MESGS:
+        exit_code = config.MAX_MESGS
+    return exit_code
 
 
 if __name__ == "__main__":
     exit_code = main()
+    while exit_code == 0:
+        print("Restarting main() !!")
+        exit_code = main()
+    print("Exiting with code ({})".format(exit_code))
     sys.exit(exit_code)

@@ -98,7 +98,7 @@ class Writer:
         pass
 
     def close(self):
-        self.buffer.set_batch_size(0)
+        self.buffer.set_batch_size(1)
         self._process_buffer()  # Process remaining messages
         print(self.name, "closing,", self.packetcount, "messages processed.")
         self._close()
