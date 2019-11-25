@@ -50,6 +50,20 @@ class StopWatch:
         self.__init__(self.__timeout)
 
 
+def uptime_str(seconds):
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    weeks, days = divmod(days, 7)
+    d = [("s", seconds), ("m", minutes), ("h", hours), ("d", days), ("w", weeks)]
+    result = []
+    for (s, v) in d:
+        if v:
+            result.append("{}{}".format(v, s))
+    result.reverse()
+    return ":".join(result)
+
+
 # helper func to verify and format macaddress
 def check_and_format_mac(val):
     if not isinstance(val, str):

@@ -69,10 +69,16 @@ def run_ble(hci_dev, QUIT_BLE_EVENT, decoder_q):
         event_loop.close()
 
         # TIMING
-        print(my_timer.get_count(), "ble messages.")
+        print("{} messages received in run_ble.".format(my_timer.get_count()))
         print(
-            1000 * 1000 * my_timer.get_average(),
-            "usec in average per message in run_ble.callback_data_handler().",
+            "Average time per message in callback_data_handler() {:.4f} ms.".format(
+                my_timer.get_average() * 1000
+            )
+        )
+        print(
+            "Max time in callback_data_handler() {:.4f} ms.".format(
+                my_timer.MAX_SPLIT * 1000
+            )
         )
         # ------------------------------
 

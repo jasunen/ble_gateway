@@ -33,6 +33,7 @@ class Decoder:
         self.use_fixed_decoders = False
         self.fixed_decoders = []
         self.mac_decoders = {}
+        self.ev = aiobs.HCI_Event()
 
     def enable_fixed_decoders(self, decoders=[]):
         # if enabled, uses fixed decoders-list
@@ -69,9 +70,9 @@ class Decoder:
             return data
 
         base_mesg = {"decoder": "none"}
-        ev = aiobs.HCI_Event()
-        ev.decode(data)
-        mesg = packet_info(ev)
+        self.ev.__init__()
+        self.ev.decode(data)
+        mesg = packet_info(self.ev)
         if "mac" not in mesg:  # invalid packet if no mac (peer) address
             print("Decoder: invalid message, no mac.")
             return base_mesg
@@ -84,7 +85,7 @@ class Decoder:
         for decoder in decoders:
             func = self.all_decoders.get(decoder, None)
             if func:
-                mesg.update(func(ev))
+                mesg.update(func(self.ev))
             if mesg:
                 mesg["decoder"] = decoder
                 return {**base_mesg, **mesg}

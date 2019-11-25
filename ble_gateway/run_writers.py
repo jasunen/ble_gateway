@@ -1,4 +1,5 @@
-import queue
+from queue import Empty as QueueEmpty
+from socket import error as SocketError
 
 from ble_gateway import defs, helpers, writers
 
@@ -23,7 +24,7 @@ def run_writers(config, writers_q):
     while True:
         try:
             mesg = writers_q.get_nowait()
-        except queue.Empty:
+        except QueueEmpty:
             mesg = None
 
         if mesg and "mac" in mesg:  # got valid message, let's process it
@@ -46,12 +47,18 @@ def run_writers(config, writers_q):
                 mesg = writers.Writer().modify_packet(mesg, mconfig)
 
                 # *** send modified packet to destinations object
-                # print("{} - let's write {}".format(time.ctime(wait_start), mesg))
-                destinations.send(mesg)
+                try:
+                    destinations.send(mesg)
+                except SocketError as e:
+                    # Let's catch network errors
+                    print("Socket failed - exiting run_writers:", e)
+                    break
 
             my_timer.split()
 
-        # No valid message to process, let's do other stuff
+        # Message processed, let's do other stuff
+
+        # Checking for STOP message
         if mesg == defs.STOPMESSAGE:
             print("STOP message received in writers_process.")
             break
@@ -61,13 +68,13 @@ def run_writers(config, writers_q):
     print("Exiting run_writers loop!")
     print("{} valid messages received.".format(my_timer.get_count()))
     print(
-        "Average time for writing a message was {} usecs.".format(
-            my_timer.get_average() * 1000 * 1000
+        "Average time for writing a message was {:.4f} ms.".format(
+            my_timer.get_average() * 1000
         )
     )
     print(
-        "Max time for writing a message was {} usecs.".format(
-            my_timer.MAX_SPLIT * 1000 * 1000
+        "Max time for writing a message was {:.4f} ms.".format(
+            my_timer.MAX_SPLIT * 1000
         )
     )
     destinations.close()

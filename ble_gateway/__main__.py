@@ -199,7 +199,9 @@ def main():
     QUIT_BLE_EVENT = Event()
 
     # Setup writers subprocess
-    writers_process = Process(target=run_writers.run_writers, args=(config, writers_q))
+    writers_process = Process(
+        target=run_writers.run_writers, args=(config, writers_q), name="Writers"
+    )
 
     # Setup BLE subprocess (either simulator or real hardware)
     if config.SIMULATOR:
@@ -207,12 +209,16 @@ def main():
         from ble_gateway import ble_simulator
 
         ble_process = Process(
-            target=ble_simulator.run_simulator, args=(config, QUIT_BLE_EVENT, decoder_q)
+            target=ble_simulator.run_simulator,
+            args=(config, QUIT_BLE_EVENT, decoder_q),
+            name="BLE Simulator",
         )
     else:
         # Setup real BLE process
         ble_process = Process(
-            target=run_ble.run_ble, args=(config.DEVICE, QUIT_BLE_EVENT, decoder_q)
+            target=run_ble.run_ble,
+            args=(config.DEVICE, QUIT_BLE_EVENT, decoder_q),
+            name="BLE Scanner",
         )
 
     print("--------- Running in {} mode ------------".format(config.MODE))
@@ -273,13 +279,13 @@ def main():
     print("Closing main.")
     print("{} messages received for decode.".format(my_timer.get_count()))
     print(
-        "Average time for decoding a message was {} usecs.".format(
-            my_timer.get_average() * 1000 * 1000
+        "Average time for decoding a message was {:.4f} ms.".format(
+            my_timer.get_average() * 1000
         )
     )
     print(
-        "Max time for decoding a message was {} usecs.".format(
-            my_timer.MAX_SPLIT * 1000 * 1000
+        "Max time for decoding a message was {:.4f} ms.".format(
+            my_timer.MAX_SPLIT * 1000
         )
     )
     QUIT_BLE_EVENT.set()
