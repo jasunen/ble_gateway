@@ -51,7 +51,7 @@ def run_writers(config, writers_q):
                     destinations.send(mesg)
                 except SocketError as e:
                     # Let's catch network errors
-                    print("Socket failed - exiting run_writers:", e)
+                    print("Socket error - exiting run_writers:", e)
                     break
 
             my_timer.split()

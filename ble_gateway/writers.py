@@ -1,5 +1,7 @@
 import time
 from queue import SimpleQueue
+from socket import error as SocketError
+from socket import gethostbyname
 
 from influxdb import InfluxDBClient
 
@@ -180,6 +182,8 @@ class InfluxDBWriter(Writer):
         "database": "none",
         "username": "root",
         "password": "root",
+        "timeout": 20,
+        "retries": 5,
     }
     # NOTE! Timestamp must be integer in milliseconds for the influxDB
 
@@ -189,9 +193,21 @@ class InfluxDBWriter(Writer):
         self.connection_settings.update(
             {k: wconfig[k] for k in set(wconfig).intersection(self.connection_defaults)}
         )
-        self.client = InfluxDBClient(**self.connection_settings)
+        self.host = self.connection_settings["host"]
         self.tags = wconfig.get("tags", [])
         self.measurement = wconfig.get("measurement", None)
+        self.client = None
+        self.set_client(self.connection_settings)
+
+    def set_client(self, settings):
+        if self.client is not None:
+            self.client.close()
+        try:
+            ip = gethostbyname(self.host)
+            self.host = ip
+        except SocketError:
+            print("Cannot resolve IP for", self.host)
+        self.client = InfluxDBClient(**{**settings, "host": self.host})
 
     def _process_buffer(self):
         if self.buffer.is_batch_ready():
@@ -233,6 +249,10 @@ class InfluxDBWriter(Writer):
                 batch_size=self.buffer.get_batch_size(),
                 protocol="line",
             )
+
+    def _close(self):
+        if self.client is not None:
+            self.client.close()
 
 
 class FileWriter(Writer):

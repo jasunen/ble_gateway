@@ -11,8 +11,11 @@ from time import sleep
 from ble_gateway import config_management, decode, defs, helpers, run_ble, run_writers
 
 
-def define_cmd_line_arguments(parser, defaults_dict):
-    # Add command line arguments to the parser
+def parse_args(defaults_dict):
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="BLE Gateway - sends advertised packets to a database"
+    )
 
     # helper func to verify macaddress
     def verify_mac(val):
@@ -24,6 +27,7 @@ def define_cmd_line_arguments(parser, defaults_dict):
 
     #
     # !! Use lowercase and no whitespaces in parameter names !!
+    # Adding command line arguments to the parser
     #
     parser.add_argument(
         "-c",
@@ -143,16 +147,6 @@ def define_cmd_line_arguments(parser, defaults_dict):
         help="Receive max N messgaes and exit.",
     )
 
-
-# EOF add_cmd_line_arguments
-
-
-def parse_command_line(defaults_dict):
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(
-        description="BLE Gateway - sends advertised packets to a database"
-    )
-    define_cmd_line_arguments(parser, defaults_dict)
     try:
         _opts = parser.parse_args()
     except Exception as e:
@@ -161,9 +155,12 @@ def parse_command_line(defaults_dict):
     return _opts
 
 
+# EOF parse_args
+
+
 def setup_configuration(config):
     # Parse command line arguments first time just to get configfile
-    args = parse_command_line(config.get_config_dict())
+    args = parse_args(config.get_config_dict())
     # Read config file and merge to built-in defaults
     d = config.load_configfile(args.configfile)
     if d:
@@ -172,7 +169,7 @@ def setup_configuration(config):
     # Command line parameters override defaults and configuration file
     # so we parse command line parameters again using configuration
     # from configfile as new defaults
-    args = vars(parse_command_line(config.get_config_dict()))
+    args = vars(parse_args(config.get_config_dict()))
     # removing options which are 'none'
     for arg in list(args.keys()):
         if not args[arg]:
@@ -184,14 +181,10 @@ def setup_configuration(config):
         config.write_configfile(args["writeconfig"])
         sys.exit(0)
 
-    config.print()
+    # config.print()
 
 
-def main():
-
-    # Create configuration object with built-in default configuration parameters
-    config = config_management.Configuration()
-    setup_configuration(config)
+def main(config):
 
     # Setup communication channels for subprocesses
     decoder_q = Queue()
@@ -264,7 +257,7 @@ def main():
                 # Send decoded message to writers
                 writers_q.put(mesg)
                 if config.SHOWRAW:
-                    print("Raw data: {}".format(data))
+                    print("{} - raw data: {}".format(mesg["mac"], data))
 
             my_timer.split()
 
@@ -305,9 +298,13 @@ def main():
 
 
 if __name__ == "__main__":
-    exit_code = main()
+    # Create configuration object with built-in default configuration parameters
+    config = config_management.Configuration()
+    setup_configuration(config)
+
+    exit_code = main(config)
     while exit_code == 0:
         print("Restarting main() !!")
-        exit_code = main()
+        exit_code = main(config)
     print("Exiting with code ({})".format(exit_code))
     sys.exit(exit_code)
