@@ -9,6 +9,12 @@
 #
 common:
   allowmac:
+  - da:b6:f7:69:c3:45
+  - e6:16:76:cf:e6:e3
+  - e2:e2:4f:4d:6c:77
+  - dc:ad:98:6e:75:a4
+  - e8:8d:16:b2:bb:73
+  - d2:c5:d2:a4:d6:56
   showraw: false
   advertise: 0
   url: http://0.0.0.0/

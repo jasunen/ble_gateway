@@ -49,9 +49,9 @@ def run_writers(config, writers_q):
                 # *** send modified packet to destinations object
                 try:
                     destinations.send(mesg)
-                except SocketError as e:
-                    # Let's catch network errors
-                    print("Socket error - exiting run_writers:", e)
+                except Exception as e:
+                    # Let's catch any errors
+                    print("Writers failing - exiting run_writers:", e)
                     break
 
             my_timer.split()
@@ -65,6 +65,8 @@ def run_writers(config, writers_q):
 
     # Breaking out of the loop
     # Clean-up, close handels and files if any and return
+    destinations.close()
+
     print("Exiting run_writers loop!")
     print("{} valid messages received.".format(my_timer.get_count()))
     print(
@@ -77,5 +79,4 @@ def run_writers(config, writers_q):
             my_timer.MAX_SPLIT * 1000
         )
     )
-    destinations.close()
     return
