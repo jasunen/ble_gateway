@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import logging.handlers
 
 import aioblescan as aiobs
 
@@ -6,7 +8,12 @@ from ble_gateway import helpers
 
 
 # Define and run ble scanner asyncio loop
-def run_ble(hci_dev, QUIT_BLE_EVENT, decoder_q):
+def run_ble(hci_dev, QUIT_BLE_EVENT, decoder_q, log_q):
+
+    # LOGGING
+    qh = logging.handlers.QueueHandler(log_q)
+    logger = logging.getLogger(__name__)
+    logger.addHandler(qh)
 
     # TIMING
     my_timer = helpers.StopWatch()

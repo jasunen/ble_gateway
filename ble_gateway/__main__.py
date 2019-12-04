@@ -5,10 +5,17 @@ import argparse
 import os
 import queue
 import sys
+import logging
+import logging.config
+import logging.handlers
+import threading
 from multiprocessing import Event, Process, Queue
 from time import sleep
 
 from ble_gateway import config_management, decode, defs, helpers, run_ble, run_writers
+
+
+logging.config.dictConfig(defs.LOG_CONFIG)
 
 
 def parse_args(defaults_dict):
@@ -184,16 +191,36 @@ def setup_configuration(config):
     # config.print()
 
 
+def logger_thread(__q):
+    while True:
+        record = __q.get()
+        if record is None:
+            break
+        __logger = logging.getLogger(record.name)
+        __logger.handle(record)
+
+
 def main(config):
 
     # Setup communication channels for subprocesses
     decoder_q = Queue()
     writers_q = Queue()
+    log_q = Queue()
     QUIT_BLE_EVENT = Event()
+
+    # Setup logging
+    qh = logging.handlers.QueueHandler(log_q)
+    logger = logging.getLogger(__name__)
+    logger.addHandler(qh)
+    lp = threading.Thread(target=logger_thread, args=(log_q,))
+    lp.start()
+    logger.info('Starting main')
 
     # Setup writers subprocess
     writers_process = Process(
-        target=run_writers.run_writers, args=(config, writers_q), name="Writers"
+        target=run_writers.run_writers,
+        args=(config, writers_q, log_q),
+        name="Writers"
     )
 
     # Setup BLE subprocess (either simulator or real hardware)
@@ -203,14 +230,14 @@ def main(config):
 
         ble_process = Process(
             target=ble_simulator.run_simulator,
-            args=(config, QUIT_BLE_EVENT, decoder_q),
+            args=(config, QUIT_BLE_EVENT, decoder_q, log_q),
             name="BLE Simulator",
         )
     else:
         # Setup real BLE process
         ble_process = Process(
             target=run_ble.run_ble,
-            args=(config.DEVICE, QUIT_BLE_EVENT, decoder_q),
+            args=(config.DEVICE, QUIT_BLE_EVENT, decoder_q, log_q),
             name="BLE Scanner",
         )
 
@@ -237,10 +264,9 @@ def main(config):
         except queue.Empty:
             data = None
             if my_timer.is_timeout():
-                print(
-                    "Time out! No messages received from BLE for",
-                    my_timer.get_timeout(),
-                    "seconds.",
+                logger.error(
+                    "Time out! No messages received from BLE for {} seoncds.".
+                    format(my_timer.get_timeout())
                 )
                 break
 
@@ -248,7 +274,7 @@ def main(config):
             my_timer.start()  # Reset wait timer
 
             if data == defs.STOPMESSAGE:
-                print("STOP message received from ble_process.")
+                logger.info("STOP message received from ble_process.")
                 break
             mesg = decoder.run(data, simulator=config.SIMULATOR)
             if "mac" in mesg and (
@@ -269,18 +295,19 @@ def main(config):
     # MAIN LOOP STOP -----------------------------------------------------------
 
     # Stop subprocesses and cleanup
-    print("Closing main.")
-    print("{} messages received for decode.".format(my_timer.get_count()))
-    print(
+    logger.info("Closing main.")
+    logger.info("{} messages received for decode.".format(my_timer.get_count()))
+    logger.info(
         "Average time for decoding a message was {:.4f} ms.".format(
             my_timer.get_average() * 1000
         )
     )
-    print(
+    logger.info(
         "Max time for decoding a message was {:.4f} ms.".format(
             my_timer.MAX_SPLIT * 1000
         )
     )
+    # Tell subprocesses to stop
     QUIT_BLE_EVENT.set()
     writers_q.put(defs.STOPMESSAGE)
     sleep(1)
@@ -290,6 +317,10 @@ def main(config):
         writers_q.get(block=True, timeout=0.05)
     ble_process.join()
     writers_process.join()
+
+    # And now tell the logging thread to finish up, too
+    log_q.put(None)
+    lp.join()
 
     exit_code = config.SIMULATOR
     if config.MAX_MESGS:
@@ -304,7 +335,7 @@ if __name__ == "__main__":
 
     exit_code = main(config)
     while exit_code == 0:
-        print("Restarting main() !!")
+        logging.info("Restarting main() !!")
         exit_code = main(config)
-    print("Exiting with code ({})".format(exit_code))
+    logging.info("Exiting with code ({})".format(exit_code))
     sys.exit(exit_code)

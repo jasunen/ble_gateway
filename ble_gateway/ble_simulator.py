@@ -15,7 +15,7 @@ def random_mac():
     )
 
 
-def run_simulator(config, QUIT_BLE_EVENT, decoder_q):
+def run_simulator(config, QUIT_BLE_EVENT, decoder_q, log_q):
     for i in range(2):
         config.SIMUMACS.append(random_mac())
     simulated_decoders = list(decode.Decoder.all_decoders)

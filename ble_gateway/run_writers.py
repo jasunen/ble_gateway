@@ -1,5 +1,4 @@
 from queue import Empty as QueueEmpty
-from socket import error as SocketError
 
 from ble_gateway import defs, helpers, writers
 
@@ -8,7 +7,7 @@ from ble_gateway import defs, helpers, writers
 
 # Run_writers takes care of forwarding BLE messages to
 # destinations defined in the configuration
-def run_writers(config, writers_q):
+def run_writers(config, writers_q, log_q):
     # Instanciate all destination objects with proper configuration
     # pprint(vars(config))
     SOURCES = list(config.SOURCES.keys())
