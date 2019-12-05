@@ -2,18 +2,17 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import os
-import queue
-import sys
 import logging
 import logging.config
 import logging.handlers
+import os
+import queue
+import sys
 import threading
 from multiprocessing import Event, Process, Queue
 from time import sleep
 
 from ble_gateway import config_management, decode, defs, helpers, run_ble, run_writers
-
 
 logging.config.dictConfig(defs.LOG_CONFIG)
 
@@ -209,18 +208,16 @@ def main(config):
     QUIT_BLE_EVENT = Event()
 
     # Setup logging
-    qh = logging.handlers.QueueHandler(log_q)
+    # qh = logging.handlers.QueueHandler(log_q)
     logger = logging.getLogger(__name__)
-    logger.addHandler(qh)
+    # logger.addHandler(qh)
     lp = threading.Thread(target=logger_thread, args=(log_q,))
     lp.start()
-    logger.info('Starting main')
+    logger.info("Starting main")
 
     # Setup writers subprocess
     writers_process = Process(
-        target=run_writers.run_writers,
-        args=(config, writers_q, log_q),
-        name="Writers"
+        target=run_writers.run_writers, args=(config, writers_q, log_q), name="Writers"
     )
 
     # Setup BLE subprocess (either simulator or real hardware)
@@ -265,26 +262,35 @@ def main(config):
             data = None
             if my_timer.is_timeout():
                 logger.error(
-                    "Time out! No messages received from BLE for {} seoncds.".
-                    format(my_timer.get_timeout())
+                    "Time out! No messages received from BLE for {} seoncds.".format(
+                        my_timer.get_timeout()
+                    )
                 )
                 break
 
         if data:  # got data, let's decode it
-            my_timer.start()  # Reset wait timer
-
             if data == defs.STOPMESSAGE:
                 logger.info("STOP message received from ble_process.")
                 break
-            mesg = decoder.run(data, simulator=config.SIMULATOR)
-            if "mac" in mesg and (
-                not config.ALLOWED_MACS or mesg["mac"] in config.ALLOWED_MACS
-            ):
-                # Send decoded message to writers
-                writers_q.put(mesg)
-                if config.SHOWRAW:
-                    print("{} - raw data: {}".format(mesg["mac"], data))
 
+            my_timer.start()  # Reset wait timer
+            if config.SIMULATOR:
+                mesg = data
+            else:
+                #
+                #
+                # !! HOW TO HANDLE DECODING IN SIMULATION MODE
+                #
+                #
+                mesg = decoder.run1(data)
+                if "mac" in mesg and (
+                    not config.ALLOWED_MACS or mesg["mac"] in config.ALLOWED_MACS
+                ):
+                    mesg = decoder.run2(data, mesg)
+                    # Send decoded message to writers
+                    writers_q.put(mesg)
+                    if config.SHOWRAW:
+                        print("{} - raw data: {}".format(mesg["mac"], data))
             my_timer.split()
 
             if config.MAX_MESGS and config.MAX_MESGS <= my_timer.get_count():

@@ -53,11 +53,6 @@ class Configuration:
         if not new_config_d or not isinstance(new_config_d, dict):
             return
 
-        #
-        # benedict.standardize messes up mac addresses !!!
-        # new_config_d = benedict(new_config_d, keypath_separator=None)
-        # new_config_d.standardize()
-        # need to use self-made function
         new_config_d = helpers._lowercase_keys(new_config_d)
         if merge:
             self.__config.merge(new_config_d)

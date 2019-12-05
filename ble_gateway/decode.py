@@ -60,32 +60,25 @@ class Decoder:
             return self.fixed_decoders
         else:
             if mac in self.mac_decoders:
-                return self.mac_decoders.get(mac)
+                return self.mac_decoders.get(mac, [])
             else:
-                return self.mac_decoders.get("*", None)
+                return self.mac_decoders.get("*", [])
 
-    def run(self, data, simulator=0):
-        if simulator > 0:
-            # data is from BLE simulator, just return the data
-            return data
-
+    def run1(self, data):
         base_mesg = {"decoder": "none"}
         self.ev.__init__()
         self.ev.decode(data)
         mesg = packet_info(self.ev)
-        if "mac" not in mesg:  # invalid packet if no mac (peer) address
-            print("Decoder: invalid message, no mac.")
-            return base_mesg
+        return {**base_mesg, **mesg}
 
-        decoders = self.get_decoders(mesg["mac"])
-        if not decoders:
-            return base_mesg
+    def run2(self, data, base_mesg):
+        decoders = self.get_decoders(base_mesg["mac"])
 
         # Try actually decode the message
         for decoder in decoders:
             func = self.all_decoders.get(decoder, None)
             if func:
-                mesg.update(func(self.ev))
+                mesg = func(self.ev)
             if mesg:
                 mesg["decoder"] = decoder
                 return {**base_mesg, **mesg}
