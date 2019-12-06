@@ -1,9 +1,14 @@
+# Setup logging
+import logging
+
 import aioblescan as aiobs
 from aioblescan.plugins import BlueMaestro, EddyStone
 
 from ble_gateway import helpers
 from ble_gateway.ruuvitagraw import RuuviTagRaw
 from ble_gateway.ruuvitagurl import RuuviTagUrl
+
+logger = logging.getLogger(__name__)
 
 
 def packet_info(ev):
@@ -38,7 +43,7 @@ class Decoder:
     def enable_fixed_decoders(self, decoders=[]):
         # if enabled, uses fixed decoders-list
         self.use_fixed_decoders = True
-        print("Setting fixed_decoders = {}".format(decoders))
+        logger.info("Setting fixed_decoders = {}".format(decoders))
         if "all" in decoders:
             self.fixed_decoders = list(self.all_decoders.keys())
         else:
@@ -47,7 +52,7 @@ class Decoder:
     def enable_per_mac_decoders(self, sources=[]):
         # Enable per mac decoders as defined in sources configuration
         self.use_fixed_decoders = False
-        print("Setting per_mac_decoders = {}".format(sources))
+        logger.info("Setting per_mac_decoders = {}".format(sources))
         for mac, mac_config in sources.items():
             _d = mac_config.get("decoders", [])
             if "all" in _d:
@@ -75,6 +80,7 @@ class Decoder:
         decoders = self.get_decoders(base_mesg["mac"])
 
         # Try actually decode the message
+        mesg = {}
         for decoder in decoders:
             func = self.all_decoders.get(decoder, None)
             if func:

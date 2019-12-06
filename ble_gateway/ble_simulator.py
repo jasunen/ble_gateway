@@ -1,7 +1,12 @@
+# Setup logging
+import logging
+import logging.handlers
 import random
 from time import sleep
 
 from ble_gateway import decode
+
+logger = logging.getLogger(__name__)
 
 
 def random_mac():
@@ -16,13 +21,18 @@ def random_mac():
 
 
 def run_simulator(config, QUIT_BLE_EVENT, decoder_q, log_q):
+    # For multiprocess logging pass log_q to subprocess and
+    # add following line to subprocess startup function
+    logging.getLogger("").handlers = []
+    logging.getLogger("").addHandler(logging.handlers.QueueHandler(log_q))
+
     for i in range(2):
         config.SIMUMACS.append(random_mac())
     simulated_decoders = list(decode.Decoder.all_decoders)
 
-    print("Entering ble_simulator loop.")
-    print("Sim macs:", config.SIMUMACS)
-    print("Sim decoders:", simulated_decoders)
+    logger.info("Entering ble_simulator loop.")
+    logger.info("Sim macs: {}".format(config.SIMUMACS))
+    logger.info("Sim decoders: {}".format(simulated_decoders))
     packetcount = 0
     while not QUIT_BLE_EVENT.is_set() and packetcount < config.SIMULATOR:
         # Do simulator stuff
@@ -36,4 +46,4 @@ def run_simulator(config, QUIT_BLE_EVENT, decoder_q, log_q):
         sleep(random.randint(5, 50) / 100)
         packetcount += 1
 
-    print("Closing simulator.")
+    logger.info("Closing simulator.")

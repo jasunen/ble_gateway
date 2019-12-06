@@ -14,8 +14,6 @@ from time import sleep
 
 from ble_gateway import config_management, decode, defs, helpers, run_ble, run_writers
 
-logging.config.dictConfig(defs.LOG_CONFIG)
-
 
 def parse_args(defaults_dict):
     # Parse command line arguments
@@ -52,6 +50,12 @@ def parse_args(defaults_dict):
         metavar="FILE",
         help="Write configuration to FILE or \
         - to print out configuration and exit.",
+    )
+    parser.add_argument(
+        "--log_to_console",
+        action="store_true",
+        default=defaults_dict[defs.C_SEC_COMMON].get("log_to_console"),
+        help="Log to console in addition to *.log files.",
     )
     parser.add_argument(
         "-m",
@@ -164,7 +168,7 @@ def parse_args(defaults_dict):
 # EOF parse_args
 
 
-def setup_configuration(config):
+def setup(config):
     # Parse command line arguments first time just to get configfile
     args = parse_args(config.get_config_dict())
     # Read config file and merge to built-in defaults
@@ -187,7 +191,8 @@ def setup_configuration(config):
         config.write_configfile(args["writeconfig"])
         sys.exit(0)
 
-    # config.print()
+    if config.LOG_CONSOLE:
+        logging.getLogger("").addHandler(logging.StreamHandler())
 
 
 def logger_thread(__q):
@@ -195,11 +200,21 @@ def logger_thread(__q):
         record = __q.get()
         if record is None:
             break
-        __logger = logging.getLogger(record.name)
-        __logger.handle(record)
+        __threadlogger = logging.getLogger(record.name)
+        __threadlogger.handle(record)
 
 
-def main(config):
+def main():
+    logging.config.dictConfig(defs.LOG_CONFIG)
+    logger.info(
+        "------- STARTING UP ({}) -------------\
+                ------------------------------".format(
+            __file__
+        )
+    )
+    # Create configuration object with built-in default configuration parameters
+    config = config_management.Configuration()
+    setup(config)
 
     # Setup communication channels for subprocesses
     decoder_q = Queue()
@@ -207,13 +222,8 @@ def main(config):
     log_q = Queue()
     QUIT_BLE_EVENT = Event()
 
-    # Setup logging
-    # qh = logging.handlers.QueueHandler(log_q)
-    logger = logging.getLogger(__name__)
-    # logger.addHandler(qh)
     lp = threading.Thread(target=logger_thread, args=(log_q,))
     lp.start()
-    logger.info("Starting main")
 
     # Setup writers subprocess
     writers_process = Process(
@@ -238,7 +248,7 @@ def main(config):
             name="BLE Scanner",
         )
 
-    print("--------- Running in {} mode ------------".format(config.MODE))
+    logger.info("--------- Running in {} mode ------------".format(config.MODE))
     ble_process.start()
     writers_process.start()
 
@@ -276,12 +286,12 @@ def main(config):
             my_timer.start()  # Reset wait timer
             if config.SIMULATOR:
                 mesg = data
+                if "mac" in mesg and (
+                    not config.ALLOWED_MACS or mesg["mac"] in config.ALLOWED_MACS
+                ):
+                    # Send decoded message to writers
+                    writers_q.put(mesg)
             else:
-                #
-                #
-                # !! HOW TO HANDLE DECODING IN SIMULATION MODE
-                #
-                #
                 mesg = decoder.run1(data)
                 if "mac" in mesg and (
                     not config.ALLOWED_MACS or mesg["mac"] in config.ALLOWED_MACS
@@ -294,7 +304,7 @@ def main(config):
             my_timer.split()
 
             if config.MAX_MESGS and config.MAX_MESGS <= my_timer.get_count():
-                print("Max message limit reached!")
+                logger.info("Max message limit reached!")
                 break
 
         # DECODE STOP ---------------------------------------------
@@ -318,9 +328,9 @@ def main(config):
     writers_q.put(defs.STOPMESSAGE)
     sleep(1)
     while not decoder_q.empty():
-        decoder_q.get(block=True, timeout=0.05)
+        decoder_q.get(block=True, timeout=1)
     while not writers_q.empty():
-        writers_q.get(block=True, timeout=0.05)
+        writers_q.get(block=True, timeout=1)
     ble_process.join()
     writers_process.join()
 
@@ -328,20 +338,19 @@ def main(config):
     log_q.put(None)
     lp.join()
 
-    exit_code = config.SIMULATOR
-    if config.MAX_MESGS:
-        exit_code = config.MAX_MESGS
-    return exit_code
+    exit_code = 1
+    if config.MAX_MESGS or config.SIMULATOR:
+        exit_code = 0
+
+    logger.info(
+        "------- EXITING with exit_code ({}) -------------\
+                ------------------------------".format(
+            exit_code
+        )
+    )
 
 
 if __name__ == "__main__":
-    # Create configuration object with built-in default configuration parameters
-    config = config_management.Configuration()
-    setup_configuration(config)
-
-    exit_code = main(config)
-    while exit_code == 0:
-        logging.info("Restarting main() !!")
-        exit_code = main(config)
-    logging.info("Exiting with code ({})".format(exit_code))
+    logger = logging.getLogger(__name__)
+    exit_code = main()
     sys.exit(exit_code)

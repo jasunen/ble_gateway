@@ -1,5 +1,9 @@
+import logging
+import logging.handlers
 import re
 import time
+
+logger = logging.getLogger(__name__)
 
 
 class StopWatch:
@@ -75,7 +79,7 @@ def check_and_format_mac(val):
         if re.match("[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", val):
             return val
     except Exception as e:
-        print("Error: " + str(e))
+        logger.error("check_and_format_mac: Error: " + str(e))
     return False
 
 

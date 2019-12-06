@@ -1,4 +1,8 @@
 import copy
+
+# Setup logging
+import logging
+import logging.handlers
 import os
 import sys
 
@@ -7,7 +11,7 @@ from benedict import benedict
 
 from ble_gateway import defs, helpers
 
-# from ble_gateway import defaults
+logger = logging.getLogger(__name__)
 
 
 class Configuration:
@@ -34,6 +38,7 @@ class Configuration:
         self.SIMULATOR = self.find_by_key("simulator", 0)
         self.DEVICE = self.find_by_key("device", 0)
         self.MAX_MESGS = self.find_by_key("max_mesgs", 0)
+        self.LOG_CONSOLE = self.find_by_key("log_to_console", False)
 
         if self.SIMULATOR:
             self.SIMUMACS = list(self.SOURCES.keys())
@@ -64,7 +69,9 @@ class Configuration:
         for section in list(self.__config.keys()):
             if section not in self.__config_sections:
                 del self.__config[section]
-                print("Removing uknown section '{}' in configuration.".format(section))
+                logger.warning(
+                    "Removing uknown section '{}' in configuration.".format(section)
+                )
 
         # Apply defaults to source and destination definitions
         for section in self.__config_sections:
@@ -107,12 +114,12 @@ class Configuration:
             return None
         if os.path.isfile(file):
             with open(file) as f:
-                print("Reading configfile:", file)
+                logger.info("Reading configfile: {}".format(file))
                 yaml = ruamel.yaml.YAML()
                 d = yaml.load(f)
             return d
         else:
-            print("No configfile found:", file)
+            logger.error("No configfile found: {}".format(file))
             return None
 
     def write_configfile(self, file, config={}):
@@ -127,7 +134,7 @@ class Configuration:
             print("Configuration as YAML:")
             yaml.dump(_out, sys.stdout)
         else:
-            print("Writing to configfile:", file)
+            logger.info("Writing to configfile: {}".format(file))
             with open(file, "w") as f:
                 yaml.dump(_out, f)
 

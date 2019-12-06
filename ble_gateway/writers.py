@@ -1,3 +1,6 @@
+# Setup logging
+import logging
+import logging.handlers
 import time
 from queue import SimpleQueue
 from socket import error as SocketError
@@ -6,6 +9,8 @@ from socket import gethostbyname
 from influxdb import InfluxDBClient
 
 from ble_gateway import helpers
+
+logger = logging.getLogger(__name__)
 
 
 class MessageBuffer:
@@ -71,7 +76,6 @@ class IntervalChecker:
             return True
 
         if now - self.last_sent[mac] < interval:  # Must wait still to reach interval
-            # print("{} has interval {}, must wait.".format(mac, interval))
             return False  # Packet will be discarded
 
         self.last_sent[mac] = now  # mark last sent time
@@ -102,7 +106,9 @@ class Writer:
     def close(self):
         self.buffer.set_batch_size(1)
         self._process_buffer()  # Process remaining messages
-        print(self.name, "closing,", self.packetcount, "messages processed.")
+        logger.info(
+            "{} closing, {} messages processed".format(self.name, self.packetcount)
+        )
         self._close()
 
     def _close(self):
@@ -206,7 +212,7 @@ class InfluxDBWriter(Writer):
             ip = gethostbyname(self.host)
             self.host = ip
         except SocketError:
-            print("Cannot resolve IP for", self.host)
+            logger.error("Cannot resolve IP for", self.host)
         self.client = InfluxDBClient(**{**settings, "host": self.host})
 
     def _process_buffer(self):
@@ -238,8 +244,6 @@ class InfluxDBWriter(Writer):
                         timestamp=timestamp,
                     )
                 )
-            # for line in data:
-            #    print(line)
 
             # Write to influxdb
             self.client.write_points(
@@ -263,11 +267,15 @@ class FileWriter(Writer):
         self.filename = wconfig.get("filename", "")
         self.f_handle = None
         if not self.filename:
-            print("No filename specified!")
+            logger.error("FileWriter: No filename specified!")
             return
 
         self.f_handle = open(self.filename, "a+")
-        print(self.filename, self.f_handle.writable())
+        logger.info(
+            "FileWriter: {} is writable: {}".format(
+                self.filename, self.f_handle.writable()
+            )
+        )
 
     def _process_buffer(self):
         if self.f_handle is not None:
@@ -312,10 +320,11 @@ class ScanWriter(Writer):
             self.seen_macs[mesg["mac"]] = mesg
 
     def _close(self):
-        print("--------- Scanned macs ------------:")
-        for mac, mesg in self.seen_macs.items():
-            mesg = self.order_fields(mesg, ["timestamp" "mac" "decoder"])
-            print(mesg)
+        if len(self.seen_macs):
+            print("--------- Scanned macs ------------:")
+            for mac, mesg in self.seen_macs.items():
+                mesg = self.order_fields(mesg, ["timestamp" "mac" "decoder"])
+                print(mesg)
 
 
 class Writers:
@@ -334,10 +343,9 @@ class Writers:
 
     def send(self, mesg):
         if not self.destinations:
-            print("{} - Routing not setup!".format(self))
+            logger.error("{} - Routing not setup!".format(self))
             return
 
-        # print("Writers.send(): mesg:", mesg)
         dest_list = self.destinations.get(mesg["mac"], self.destinations.get("*"))
         for dest in dest_list:
             if dest in self.all_writers:

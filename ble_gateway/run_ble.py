@@ -1,4 +1,6 @@
 import asyncio
+
+# Setup logging
 import logging
 import logging.handlers
 
@@ -6,14 +8,15 @@ import aioblescan as aiobs
 
 from ble_gateway import helpers
 
+logger = logging.getLogger(__name__)
+
 
 # Define and run ble scanner asyncio loop
 def run_ble(hci_dev, QUIT_BLE_EVENT, decoder_q, log_q):
-
-    # LOGGING
-    qh = logging.handlers.QueueHandler(log_q)
-    logger = logging.getLogger(__name__)
-    logger.addHandler(qh)
+    # For multiprocess logging pass log_q to subprocess and
+    # add following line to subprocess startup function
+    logging.getLogger("").handlers = []
+    logging.getLogger("").addHandler(logging.handlers.QueueHandler(log_q))
 
     # TIMING
     my_timer = helpers.StopWatch()
@@ -44,7 +47,7 @@ def run_ble(hci_dev, QUIT_BLE_EVENT, decoder_q, log_q):
     # EOF callback_data_handler
 
     if int(hci_dev) < 0:
-        print("No device specified, exiting run_ble")
+        logger.error("No device specified, exiting run_ble")
         return 1
 
     # First create and configure a raw socket
@@ -68,7 +71,7 @@ def run_ble(hci_dev, QUIT_BLE_EVENT, decoder_q, log_q):
     except KeyboardInterrupt:
         print("\nKeyboard interrupt!")
     finally:
-        print("Closing ble event loop.")
+        logger.info("Closing ble event loop.")
         btctrl.stop_scan_request()
         command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
         btctrl.send_command(command)
@@ -76,19 +79,19 @@ def run_ble(hci_dev, QUIT_BLE_EVENT, decoder_q, log_q):
         event_loop.close()
 
         # TIMING
-        print("{} messages received in run_ble.".format(my_timer.get_count()))
-        print(
+        logger.info("{} messages received in run_ble.".format(my_timer.get_count()))
+        logger.info(
             "Average time per message in callback_data_handler() {:.4f} ms.".format(
                 my_timer.get_average() * 1000
             )
         )
-        print(
+        logger.info(
             "Max time in callback_data_handler() {:.4f} ms.".format(
                 my_timer.MAX_SPLIT * 1000
             )
         )
         # ------------------------------
 
-    print("Exiting run_ble.")
+    logger.info("Exiting run_ble.")
     return 0
     # EOF run_ble

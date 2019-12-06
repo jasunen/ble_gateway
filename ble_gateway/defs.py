@@ -7,42 +7,29 @@ C_SEC_SOURCES = "sources"
 C_SEC_DESTINATIONS = "destinations"
 
 LOG_CONFIG = {
-    'version': 1,
-    'formatters': {
-        'detailed': {
-            'class': 'logging.Formatter',
-            'format': '%(asctime)s %(processName)-10s \
-            %(name)-15s %(levelname)-8s %(message)s'
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "detailed": {
+            "class": "logging.Formatter",
+            "format": "%(asctime)s %(processName)-10s \
+            %(name)-15s %(levelname)-8s %(message)s",
         }
     },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'level': 'INFO',
-        },
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': 'ble_gateway.log',
-            'mode': 'a',
-            'formatter': 'detailed',
-        },
-        'errors': {
-            'class': 'logging.FileHandler',
-            'filename': 'ble_gateway-errors.log',
-            'mode': 'a',
-            'level': 'ERROR',
-            'formatter': 'detailed',
-        },
+    "handlers": {
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": "ble_gateway.log",
+            "mode": "a",
+            "formatter": "detailed",
+        }
     },
     # 'loggers': {
     #    'foo': {
     #        'handlers': ['foofile']
     #    }
     # },
-    'root': {
-        'level': 'DEBUG',
-        'handlers': ['console', 'file', 'errors']
-    },
+    "root": {"level": "INFO", "handlers": ["file"]},
 }
 
 DEFAULT_CONFIG = {
@@ -60,6 +47,7 @@ DEFAULT_CONFIG = {
         "no_messages_timeout": int(10),
         "simulator": int(0),
         "max_mesgs": int(0),
+        "log_to_console": False,
     },
     #
     # SOURCES section:

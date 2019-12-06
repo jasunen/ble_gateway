@@ -1,15 +1,22 @@
+# Setup logging
+import logging
+import logging.handlers
 from queue import Empty as QueueEmpty
 
 from ble_gateway import defs, helpers, writers
 
-# from pprint import pprint
+logger = logging.getLogger(__name__)
 
 
 # Run_writers takes care of forwarding BLE messages to
 # destinations defined in the configuration
 def run_writers(config, writers_q, log_q):
+    # For multiprocess logging pass log_q to subprocess and
+    # add following line to subprocess startup function
+    logging.getLogger("").handlers = []
+    logging.getLogger("").addHandler(logging.handlers.QueueHandler(log_q))
+
     # Instanciate all destination objects with proper configuration
-    # pprint(vars(config))
     SOURCES = list(config.SOURCES.keys())
     unknown_mac_config = config.SOURCES.get("*", {})
     destinations = writers.Writers()
@@ -18,7 +25,7 @@ def run_writers(config, writers_q, log_q):
     waitlist = writers.IntervalChecker(config.SOURCES)
 
     # Loop reading Queue and processing messages
-    print("Starting run_writers loop.")
+    logger.info("Starting run_writers loop.")
     my_timer = helpers.StopWatch()
     while True:
         try:
@@ -26,8 +33,12 @@ def run_writers(config, writers_q, log_q):
         except QueueEmpty:
             mesg = None
 
-        if mesg and "mac" in mesg:  # got valid message, let's process it
-            # print("Got message from", mesg["mac"])
+        if mesg:  # got a message, let's process it
+            # Checking for STOP message
+            if mesg == defs.STOPMESSAGE:
+                logger.info("STOP message received in writers_process.")
+                break
+
             _now = my_timer.start()
 
             # When packet is received, check if associated mac has configuration
@@ -48,32 +59,27 @@ def run_writers(config, writers_q, log_q):
                 # *** send modified packet to destinations object
                 try:
                     destinations.send(mesg)
-                except Exception as e:
+                except Exception:
                     # Let's catch any errors
-                    print("Writers failing - exiting run_writers:", e)
+                    logger.exception("Writers failing - exiting run_writers:")
                     break
 
             my_timer.split()
 
         # Message processed, let's do other stuff
 
-        # Checking for STOP message
-        if mesg == defs.STOPMESSAGE:
-            print("STOP message received in writers_process.")
-            break
-
     # Breaking out of the loop
     # Clean-up, close handels and files if any and return
     destinations.close()
 
-    print("Exiting run_writers loop!")
-    print("{} valid messages received.".format(my_timer.get_count()))
-    print(
+    logger.info("Exiting run_writers loop!")
+    logger.info("{} valid messages received.".format(my_timer.get_count()))
+    logger.info(
         "Average time for writing a message was {:.4f} ms.".format(
             my_timer.get_average() * 1000
         )
     )
-    print(
+    logger.info(
         "Max time for writing a message was {:.4f} ms.".format(
             my_timer.MAX_SPLIT * 1000
         )
