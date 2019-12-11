@@ -148,6 +148,7 @@ destinations:
     mappings:
     # - mac+fieldname=channelid+fieldid
     - da:b6:f7:69:c3:45+temperature=123456+1
+    - da:b6:f7:69:c3:45+humidity=123456+2
     - e6:16:76:cf:e6:e3
     - e2:e2:4f:4d:6c:77
     - dc:ad:98:6e:75:a4
