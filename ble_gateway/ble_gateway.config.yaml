@@ -50,7 +50,7 @@ sources:
   defaults:
     destinations:
     - default_file
-    interval: 0
+    interval: 20
     # fields in fields_order will be first, other fields remain as is
     fields_order:
     - timestamp
@@ -62,28 +62,28 @@ sources:
     decoders:
     - ruuviraw
     destinations:
-    - influxdb_test
+    - influxdb1
     fields_add:
     - location=Ulkona
   e6:16:76:cf:e6:e3:
     decoders:
     - ruuviraw
     destinations:
-    - influxdb_test
+    - influxdb1
     fields_add:
     - location=Olohuone
   e2:e2:4f:4d:6c:77:
     decoders:
     - ruuviraw
     destinations:
-    - influxdb_test
+    - influxdb1
     fields_add:
     - location=Makuuhuone
   dc:ad:98:6e:75:a4:
     decoders:
     - ruuviraw
     destinations:
-    - influxdb_test
+    - influxdb1
     fields_add:
     - location=Alapohja
   e8:8d:16:b2:bb:73:
@@ -97,7 +97,7 @@ sources:
     decoders:
     - ruuviraw
     destinations:
-    - influxdb_test
+    - influxdb1
     fields_add:
     - location=Joelinhuone
 #
@@ -115,7 +115,7 @@ destinations:
     type: file
     filename: default_file.LOG
     batch: 10
-  influxdb_test:
+  influxdb1:
     type: influxdb
     host: jani-3620
     port: 8086
@@ -124,7 +124,7 @@ destinations:
     password: root
     measurement: ruuvi_measurements
     batch: 10
-    interval: 10
+    interval: 30
     tags:
     - location
     - mac
@@ -139,7 +139,21 @@ destinations:
     - tx_power=txPower
     values_uppercase:
     - mac
-  defaults:
+  thingspeak1:
+    type: thingspeak
+    url:
+    write_api_key: ruuvi_measurements
+    batch: 10
+    interval: 30
+    mappings:
+    # - mac+fieldname=channelid+fieldid
+    - da:b6:f7:69:c3:45+temperature=123456+1
+    - e6:16:76:cf:e6:e3
+    - e2:e2:4f:4d:6c:77
+    - dc:ad:98:6e:75:a4
+    - e8:8d:16:b2:bb:73
+    - d2:c5:d2:a4:d6:56
+defaults:
     fields_rename:
     - peer=mac
     interval: 0
