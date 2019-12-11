@@ -1,3 +1,5 @@
+import sys
+
 STOPMESSAGE = "STOP"
 SCANMODE = "SCAN"
 GWMODE = "GATEWAY"
@@ -6,6 +8,16 @@ C_SEC_COMMON = "common"
 C_SEC_SOURCES = "sources"
 C_SEC_DESTINATIONS = "destinations"
 
+if sys.platform == "darwin":
+    address = "/var/run/syslog"
+    facility = "local1"
+elif sys.platform == "linux":
+    address = "/dev/log"
+    facility = "local0"
+else:
+    address = ("localhost", 514)
+    facility = "local0"
+
 LOG_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -13,23 +25,31 @@ LOG_CONFIG = {
         "detailed": {
             "class": "logging.Formatter",
             "format": "%(asctime)s %(processName)-10s \
-            %(name)-15s %(levelname)-8s %(message)s",
-        }
+            %(name)-15s.%(funcName)s: %(levelname)-8s %(message)s",
+        },
+        "syslog": {
+            "class": "logging.Formatter",
+            "format": "%(processName)-10s.%(name)-15s.\
+            %(funcName)s: %(message)s",
+        },
     },
     "handlers": {
         "file": {
             "class": "logging.FileHandler",
             "filename": "ble_gateway.log",
+            "level": "ERROR",
             "mode": "a",
             "formatter": "detailed",
-        }
+        },
+        "syslog": {
+            "class": "logging.handlers.SysLogHandler",
+            "address": address,
+            "facility": facility,
+            "level": "INFO",
+            "formatter": "syslog",
+        },
     },
-    # 'loggers': {
-    #    'foo': {
-    #        'handlers': ['foofile']
-    #    }
-    # },
-    "root": {"level": "INFO", "handlers": ["file"]},
+    "root": {"level": "INFO", "handlers": ["file", "syslog"]},
 }
 
 DEFAULT_CONFIG = {

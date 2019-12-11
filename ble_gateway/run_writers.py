@@ -27,46 +27,50 @@ def run_writers(config, writers_q, log_q):
     # Loop reading Queue and processing messages
     logger.info("Starting run_writers loop.")
     my_timer = helpers.StopWatch()
-    while True:
-        try:
-            mesg = writers_q.get_nowait()
-        except QueueEmpty:
-            mesg = None
+    try:
+        while True:
+            try:
+                mesg = writers_q.get_nowait()
+            except QueueEmpty:
+                mesg = None
 
-        if mesg:  # got a message, let's process it
-            # Checking for STOP message
-            if mesg == defs.STOPMESSAGE:
-                logger.info("STOP message received in writers_process.")
-                break
-
-            _now = my_timer.start()
-
-            # When packet is received, check if associated mac has configuration
-            # defined.
-            mac = mesg["mac"]
-            mconfig = {}
-            if mac in SOURCES:
-                mconfig = config.SOURCES[mac]
-            elif unknown_mac_config:
-                mconfig = unknown_mac_config
-
-            # Check interval and discard if last sent time less than interval
-            if waitlist.is_wait_over(mac, now=_now):
-                # modify the packet as defined in configuration
-                mesg["timestamp"] = _now  # timestamp the message
-                mesg = writers.Writer().modify_packet(mesg, mconfig)
-
-                # *** send modified packet to destinations object
-                try:
-                    destinations.send(mesg)
-                except Exception:
-                    # Let's catch any errors
-                    logger.exception("Writers failing - exiting run_writers:")
+            if mesg:  # got a message, let's process it
+                # Checking for STOP message
+                if mesg == defs.STOPMESSAGE:
+                    logger.info("STOP message received in writers_process.")
                     break
 
-            my_timer.split()
+                _now = my_timer.start()
 
-        # Message processed, let's do other stuff
+                # When packet is received, check if associated mac has configuration
+                # defined.
+                mac = mesg["mac"]
+                mconfig = {}
+                if mac in SOURCES:
+                    mconfig = config.SOURCES[mac]
+                elif unknown_mac_config:
+                    mconfig = unknown_mac_config
+
+                # Check interval and discard if last sent time less than interval
+                if waitlist.is_wait_over(mac, now=_now):
+                    # modify the packet as defined in configuration
+                    mesg["timestamp"] = _now  # timestamp the message
+                    mesg = writers.Writer().modify_packet(mesg, mconfig)
+
+                    # *** send modified packet to destinations object
+                    try:
+                        destinations.send(mesg)
+                    except Exception:
+                        # Let's catch any errors
+                        logger.exception("Writers failing - exiting run_writers:")
+                        break
+
+                my_timer.split()
+
+            # Message processed, let's do other stuff
+
+    except KeyboardInterrupt:
+        print("\nKeyboard interrupt!")
 
     # Breaking out of the loop
     # Clean-up, close handels and files if any and return

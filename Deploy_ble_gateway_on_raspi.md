@@ -54,3 +54,50 @@ git stash # stash all local edits
 git pull # pull from github repo
 # update run script as above
 ```
+
+# Run on reboot
+Create a script which loops following:
+- runs ble_gateway module using above run_ble.sh script
+- on exit checks network connectivity
+- if no network: reboot if uptime > 20 minutes (to avoid boot loops)
+- if uptime < 20 minutes: wait 3 minutes and reset networking
+```sh
+#!/bin/bash
+
+while true; do
+	cd /home/pi/ble_gateway
+	date
+	echo STARTING run_ble
+	. run_ble.sh
+	date
+	echo run_ble exiting
+	ping -c4 raspi1 > /dev/null
+
+	if [ $? != 0 ]; then
+	echo NO NETWORK DETECTED
+	read -d. uptime_seconds < /proc/uptime
+
+	if (( $uptime_seconds > 20*60 )); then
+		date
+		echo REBOOTING after $uptime_seconds seconds of uptime
+		sudo /sbin/shutdown -r now
+	fi
+	echo Not rebooting yet, uptime $uptime_seconds seconds, trying network reset first!
+  sleep 180
+	sudo service networking restart
+	sudo ifconfig wlan0 down
+	sleep 10
+	sudo ifconfig wlan0 up
+	else
+	echo Network fine!
+	fi
+
+	echo Restarting ble_gateway!
+	sleep 10
+done```
+
+User pi crontab:
+```sh
+# Add following line to crontab
+@reboot sleep 10 && /home/pi/ble_gateway_reboot.sh >> $HOME/ble_gateway_reboot.log 2>&1
+```

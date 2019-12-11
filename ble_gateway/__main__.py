@@ -352,5 +352,8 @@ def main():
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
-    exit_code = main()
+    try:
+        exit_code = main()
+    except KeyboardInterrupt:
+        print("\nKeyboard interrupt!")
     sys.exit(exit_code)
